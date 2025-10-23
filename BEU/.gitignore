@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build files
+dist/
+build/
+
+# Runtime data
+pids/
+*.pid
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.vscode-test
+*.code-workspace
+
+# Local history for Visual Studio Code
+.history/
+
+# Database files (optional - remove if you want to commit them)
+*.sqlite
+*.db
+
+# Database scripts (development only)
+scripts/recreate-database.js
+scripts/sync-database.js
+
+# Documentation files that are auto-generated
+POSTMAN_TESTING_GUIDE.md
+CORRECTED_TEST_GUIDE.md
+COMPLETE_API_DOCUMENTATION.md
+API_TEST_GUIDE.md
+
+# Postman collections
+Convenience-Store-API.postman_collection.json
