@@ -8,6 +8,7 @@ import {
   declineOrder,
   completeOrder,
   getOrderDetail,
+  createShippingOrder,
 } from "../controllers/orders.controller.js";
 import { authenticateToken, checkUser, checkManager } from "../middleware.js";
 
@@ -43,6 +44,12 @@ router.post(
   authenticateToken,
   checkManager,
   completeOrder
+);
+router.post(
+  "/manager/create-shipping/:orderId",
+  authenticateToken,
+  checkManager,
+  createShippingOrder
 );
 
 // User routes - History before generic get

@@ -4,6 +4,11 @@ import initCartModel from "./cart.model.js";
 import initOrderDetailModel from "./orderDetail.model.js";
 import initOrderModel from "./order.model.js";
 import initStoreModel from "./store.model.js";
+import initCategoryModel from "./category.model.js";
+import initBannerModel from "./banner.model.js";
+import initSiteSettingModel from "./siteSetting.model.js";
+import initProductTemplateModel from "./productTemplate.model.js";
+import initStoreProductModel from "./storeProduct.model.js";
 import { sequelize } from "../config/database.js";
 
 // Initialize models
@@ -13,6 +18,11 @@ const Cart = initCartModel(sequelize);
 const OrderDetail = initOrderDetailModel(sequelize);
 const Order = initOrderModel(sequelize);
 const Store = initStoreModel(sequelize);
+const Category = initCategoryModel(sequelize);
+const Banner = initBannerModel(sequelize);
+const SiteSetting = initSiteSettingModel(sequelize);
+const ProductTemplate = initProductTemplateModel(sequelize);
+const StoreProduct = initStoreProductModel(sequelize);
 
 // --- Define Associations ---
 
@@ -48,6 +58,19 @@ OrderDetail.belongsTo(Order, { foreignKey: "orderId" });
 Product.hasMany(OrderDetail, { foreignKey: "productId" });
 OrderDetail.belongsTo(Product, { foreignKey: "productId" });
 
+// ProductTemplate - StoreProduct - Store Associations
+ProductTemplate.hasMany(StoreProduct, {
+  foreignKey: "product_template_id",
+  as: "storeProducts",
+});
+StoreProduct.belongsTo(ProductTemplate, {
+  foreignKey: "product_template_id",
+  as: "productTemplate",
+});
+
+Store.hasMany(StoreProduct, { foreignKey: "store_id", as: "storeProducts" });
+StoreProduct.belongsTo(Store, { foreignKey: "store_id", as: "store" });
+
 const syncModels = async () => {
   await sequelize.sync({ alter: true });
   console.log("🔄 All models were synchronized successfully.");
@@ -62,4 +85,9 @@ export {
   OrderDetail,
   Order,
   Store,
+  Category,
+  Banner,
+  SiteSetting,
+  ProductTemplate,
+  StoreProduct,
 };

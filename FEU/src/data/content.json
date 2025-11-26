@@ -1,0 +1,83 @@
+{
+  "footer": {
+    "items": [
+      {
+        "title": "Danh mục sản phẩm",
+        "list": [
+          {
+            "label": "Thực phẩm",
+            "path": "/food"
+          },
+          {
+            "label": "Đồ uống",
+            "path": "/drink"
+          },
+          {
+            "label": "Gia dụng",
+            "path": "/household"
+          },
+          {
+            "label": "Cá nhân",
+            "path": "/personal"
+          }
+        ]
+      },
+      {
+        "title": "Chăm sóc khách hàng",
+        "list": [
+          {
+            "label": "Chính sách bảo mật",
+            "path": "/"
+          },
+          {
+            "label": "Điều khoản và điều kiện",
+            "path": "/"
+          },
+          {
+            "label": "Chính sách đổi trả",
+            "path": "/"
+          },
+          {
+            "label": "Hướng dẫn mua hàng",
+            "path": "/"
+          }
+        ]
+      },
+      {
+        "title": "Liên hệ",
+        "list": [
+          {
+            "label": "Hotline: 1900-xxxx",
+            "path": "/"
+          },
+          {
+            "label": "Email: support@store.com",
+            "path": "/"
+          },
+          {
+            "label": "Địa chỉ: TP.HCM, Việt Nam",
+            "path": "/"
+          }
+        ]
+      },
+      {
+        "title": "Mạng xã hội",
+        "list": [
+          {
+            "label": "Facebook",
+            "path": "/"
+          },
+          {
+            "label": "Instagram",
+            "path": "/"
+          },
+          {
+            "label": "Zalo",
+            "path": "/"
+          }
+        ]
+      }
+    ],
+    "copyright": "© 2024 Multi Convenience Store. All rights reserved."
+  }
+}

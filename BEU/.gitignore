@@ -67,6 +67,9 @@ coverage/
 *.sqlite
 *.db
 
+# Migrations (avoid pushing to production)
+migrations/
+
 # Database scripts (development only)
 scripts/recreate-database.js
 scripts/sync-database.js

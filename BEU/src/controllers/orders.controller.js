@@ -1,13 +1,22 @@
 import { Op } from "sequelize";
 import { Cart, Order, OrderDetail, User, Product } from "../models/index.js";
 import { sequelize } from "../config/database.js";
+import { createGHNOrder } from "../services/ghn.service.js";
 
 // Tạo đơn hàng mới (Người dùng)
 export const createOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { storeId, items, payment_method } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId; // JWT payload has userId not id
+
+    console.log("📦 Create order request:", {
+      userId,
+      storeId,
+      itemsCount: items?.length,
+      payment_method,
+    });
+    console.log("📦 Items:", items);
 
     if (!storeId || !items?.length || !payment_method) {
       await transaction.rollback();
@@ -21,6 +30,15 @@ export const createOrder = async (req, res) => {
       (sum, item) => sum + item.price * item.quantity,
       0
     );
+    const discount = 0; // Có thể thêm logic tính discount sau
+    const final_price = total_price - discount;
+
+    console.log("💰 Order totals:", {
+      total_quantity,
+      total_price,
+      discount,
+      final_price,
+    });
 
     // Kiểm tra stock
     for (const item of items) {
@@ -55,6 +73,8 @@ export const createOrder = async (req, res) => {
         storeId,
         total_quantity,
         total_price,
+        discount,
+        final_price,
         payment_method,
         status: "pending",
         order_time: new Date(),
@@ -75,17 +95,20 @@ export const createOrder = async (req, res) => {
     await Cart.destroy({ where: { userId }, transaction });
 
     await transaction.commit();
+    console.log("✅ Order created successfully:", order.id);
     res.status(201).json({ message: "Đặt hàng thành công", order });
   } catch (error) {
+    console.error("❌ Create order error:", error);
+    console.error("❌ Error stack:", error.stack);
     await transaction.rollback();
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Lỗi server: " + error.message });
   }
 };
 
 // Lấy đơn hàng của người dùng
 export const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // JWT payload has userId not id
     const orders = await Order.findAll({
       where: { studentId: userId },
       include: [
@@ -99,14 +122,15 @@ export const getUserOrders = async (req, res) => {
     });
     res.status(200).json(orders);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("getUserOrders error:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 };
 
 // Lấy đơn hàng của quản lý
 export const getManagerOrders = async (req, res) => {
   try {
-    const managerId = req.user.id;
+    const managerId = req.user.userId; // JWT payload has userId not id
     const orders = await Order.findAll({
       where: { staffId: managerId, storeId: req.user.storeId },
       include: [
@@ -120,7 +144,8 @@ export const getManagerOrders = async (req, res) => {
     });
     res.status(200).json(orders);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("getManagerOrders error:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 };
 
@@ -245,20 +270,152 @@ export const completeOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: "Đơn hàng không tồn tại" });
     }
-    if (order.status !== "processing") {
+    if (order.status !== "shipping") {
       return res
         .status(400)
-        .json({ message: "Đơn hàng phải ở trạng thái processing" });
+        .json({ message: "Đơn hàng phải ở trạng thái shipping" });
     }
     if (order.storeId !== req.user.storeId) {
       return res.status(403).json({ message: "Không có quyền" });
     }
 
-    order.status = "completed";
+    order.status = "delivered";
     await order.save();
 
+    console.log("✅ Order completed:", orderId);
     res.status(200).json({ message: "Hoàn thành đơn hàng", order });
   } catch (error) {
     res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
+// Chuyển đơn sang trạng thái đang giao hàng (không cần GHN API)
+export const startShipping = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { shipperName, shipperPhone } = req.body;
+
+    const order = await Order.findByPk(orderId);
+
+    if (!order) {
+      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+    }
+
+    if (order.status !== "processing") {
+      return res.status(400).json({
+        message: "Chỉ có thể giao đơn đang xử lý",
+      });
+    }
+
+    if (order.storeId !== req.user.storeId) {
+      return res.status(403).json({ message: "Không có quyền" });
+    }
+
+    // Cập nhật trạng thái và thông tin shipper
+    order.status = "shipping";
+    order.shipper_name = shipperName || null;
+    order.shipper_phone = shipperPhone || null;
+    await order.save();
+
+    console.log("📦 Order started shipping:", orderId);
+
+    res.status(200).json({
+      message: "Đơn hàng đã chuyển sang đang giao",
+      order,
+    });
+  } catch (error) {
+    console.error("❌ Start shipping error:", error);
+    res.status(500).json({
+      message: "Lỗi server: " + error.message,
+    });
+  }
+};
+
+// Tạo đơn vận chuyển (Manager)
+export const createShippingOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const {
+      toName,
+      toPhone,
+      toAddress,
+      toWardCode,
+      toDistrictId,
+      weight,
+      codAmount,
+    } = req.body;
+
+    console.log("📦 Creating shipping order for:", orderId);
+
+    // Kiểm tra đơn hàng
+    const order = await Order.findByPk(orderId, {
+      include: [
+        {
+          model: OrderDetail,
+          as: "orderDetails",
+        },
+      ],
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+    }
+
+    if (order.status !== "processing") {
+      return res.status(400).json({
+        message: "Chỉ có thể tạo vận đơn cho đơn hàng đang xử lý",
+      });
+    }
+
+    if (order.storeId !== req.user.storeId) {
+      return res.status(403).json({ message: "Không có quyền" });
+    }
+
+    // Tạo đơn vận chuyển qua GHN
+    const ghnResult = await createGHNOrder({
+      toName,
+      toPhone,
+      toAddress,
+      toWardCode,
+      toDistrictId,
+      codAmount:
+        codAmount || (order.payment_method === "COD" ? order.final_price : 0),
+      weight: weight || 200,
+      items: order.orderDetails.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    });
+
+    if (!ghnResult.success) {
+      return res.status(400).json({
+        message: "Không thể tạo đơn vận chuyển: " + ghnResult.message,
+      });
+    }
+
+    // Cập nhật order với thông tin vận chuyển
+    order.shipping_partner = "GHN";
+    order.shipping_code = ghnResult.orderCode;
+    order.shipping_fee = ghnResult.totalFee;
+    order.status = "shipping"; // Chuyển sang trạng thái đang giao
+    await order.save();
+
+    console.log("✅ Shipping order created:", ghnResult.orderCode);
+
+    res.status(200).json({
+      message: "Tạo đơn vận chuyển thành công",
+      order,
+      shipping: {
+        code: ghnResult.orderCode,
+        fee: ghnResult.totalFee,
+        expectedDelivery: ghnResult.expectedDeliveryTime,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Create shipping error:", error);
+    res.status(500).json({
+      message: "Lỗi tạo đơn vận chuyển: " + error.message,
+    });
   }
 };

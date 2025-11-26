@@ -22,6 +22,11 @@ export default (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      images: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Array of additional product images",
+      },
       price: {
         type: DataTypes.DOUBLE,
         allowNull: false,

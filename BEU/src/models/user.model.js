@@ -11,14 +11,24 @@ export default (sequelize) => {
         primaryKey: true,
       },
       username: { type: DataTypes.STRING, allowNull: false },
-      password: { type: DataTypes.STRING, allowNull: false },
+      password: { type: DataTypes.STRING, allowNull: true }, // Nullable for OAuth users
       name: { type: DataTypes.STRING, allowNull: false },
+      provider: {
+        type: DataTypes.ENUM("local", "github", "facebook"),
+        defaultValue: "local",
+        allowNull: false,
+      },
+      githubId: { type: DataTypes.STRING, allowNull: true }, // For GitHub OAuth users
+      facebookId: { type: DataTypes.STRING, allowNull: true }, // For Facebook OAuth users
       dob: { type: DataTypes.DATE },
       gender: {
         type: DataTypes.ENUM("Male", "Female", "Other"),
         defaultValue: "Other",
       },
       resetOTP: { type: DataTypes.STRING },
+      verificationOTP: { type: DataTypes.STRING },
+      verificationOTPExpiry: { type: DataTypes.DATE },
+      isVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
       phone: { type: DataTypes.STRING },
       email: { type: DataTypes.STRING },
       resetOTPExpiry: { type: DataTypes.DATE },

@@ -1,10 +1,28 @@
 import { Product } from "../models/index.js";
+import { Op } from "sequelize";
 
 // For all users to view products
 export const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.findAll();
-    res.status(200).json(products);
+    const { category, name, page = 0, size = 12 } = req.query;
+    const offset = parseInt(page) * parseInt(size);
+
+    const where = {};
+    if (category) where.category = category;
+    if (name) where.name = { [Op.like]: `%${name}%` };
+
+    const { count, rows } = await Product.findAndCountAll({
+      where,
+      limit: parseInt(size),
+      offset: offset,
+      order: [["id", "DESC"]],
+    });
+
+    res.set(
+      "Content-Range",
+      `products ${offset}-${offset + rows.length}/${count}`
+    );
+    res.status(200).json(rows);
   } catch (error) {
     res
       .status(500)
@@ -30,26 +48,39 @@ export const getProductById = async (req, res) => {
 // For managers/admins to manage products
 export const createProduct = async (req, res) => {
   try {
-    const { name, price, quantity, image, description, category } = req.body;
-    const storeId =
-      req.user.role === "manager" ? req.user.storeId : req.body.storeId; // Managers use their own storeId, admins can specify
+    const { name, price, quantity, image, description, category, storeId } =
+      req.body;
+
+    // Admin có thể tạo product không cần gắn store ngay (storeId = null)
+    // Manager phải tạo product cho store của mình
+    let finalStoreId = null;
+
+    if (req.user.role === "manager") {
+      finalStoreId = req.user.storeId;
+    } else if (req.user.role === "admin" && storeId) {
+      finalStoreId = storeId;
+    }
 
     const newProduct = await Product.create({
       name,
       price,
-      quantity,
+      quantity: quantity || 0,
       image,
       description,
       category,
-      storeId,
+      storeId: finalStoreId,
     });
-    res
-      .status(201)
-      .json({ message: "Product created successfully", product: newProduct });
+
+    res.status(201).json({
+      message: "Product created successfully",
+      product: newProduct,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error creating product", error: error.message });
+    console.error("Create product error:", error);
+    res.status(500).json({
+      message: "Error creating product",
+      error: error.message,
+    });
   }
 };
 

@@ -32,17 +32,16 @@ const checkRole = (role) => (req, res, next) => {
 
 const checkRoles = (roles) => (req, res, next) => {
   if (!req.user || !roles.includes(req.user.role)) {
-    return res
-      .status(403)
-      .json({
-        message: `Access denied. Requires one of the following roles: ${roles.join(
-          ", "
-        )}.`,
-      });
+    return res.status(403).json({
+      message: `Access denied. Requires one of the following roles: ${roles.join(
+        ", "
+      )}.`,
+    });
   }
   next();
 };
 
 export const checkAdmin = checkRole("admin");
 export const checkManager = checkRoles(["admin", "manager"]); // Admins can do what managers can do
+export const checkAdminOrManager = checkRoles(["admin", "manager"]);
 export const checkUser = checkRole("user");

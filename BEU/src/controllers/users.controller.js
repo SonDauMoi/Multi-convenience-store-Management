@@ -3,6 +3,63 @@ import bcrypt from "bcryptjs";
 import { Op } from "sequelize";
 import { User, Order, Cart } from "../models/index.js";
 
+// Get current user profile from JWT token
+export const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId; // From authenticateToken middleware
+    const user = await User.findByPk(userId, {
+      attributes: {
+        exclude: [
+          "password",
+          "resetOTP",
+          "resetOTPExpiry",
+          "verificationOTP",
+          "verificationOTPExpiry",
+        ],
+      },
+    });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Upload avatar (base64 or URL)
+export const uploadAvatar = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { avatar } = req.body; // Expecting base64 string or URL
+
+    if (!avatar) {
+      return res.status(400).json({ message: "Avatar is required" });
+    }
+
+    await User.update({ avatar }, { where: { id: userId } });
+    const user = await User.findByPk(userId, {
+      attributes: {
+        exclude: [
+          "password",
+          "resetOTP",
+          "resetOTPExpiry",
+          "verificationOTP",
+          "verificationOTPExpiry",
+        ],
+      },
+    });
+
+    res.status(200).json({ message: "Avatar updated successfully", user });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
 // Get user info by ID
 export const getUserInfo = async (req, res) => {
   try {
@@ -157,6 +214,7 @@ export const createUser = async (req, res) => {
       password: hashed,
       role,
       storeId: role === "manager" ? storeId : null,
+      isVerified: true, // Admin-created accounts are auto-verified
     });
 
     const userResponse = { ...newUser.get({ plain: true }) };
