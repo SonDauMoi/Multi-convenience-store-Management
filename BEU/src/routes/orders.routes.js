@@ -8,7 +8,7 @@ import {
   declineOrder,
   completeOrder,
   getOrderDetail,
-  createShippingOrder,
+  cancelOrder,
 } from "../controllers/orders.controller.js";
 import { authenticateToken, checkUser, checkManager } from "../middleware.js";
 
@@ -45,15 +45,10 @@ router.post(
   checkManager,
   completeOrder
 );
-router.post(
-  "/manager/create-shipping/:orderId",
-  authenticateToken,
-  checkManager,
-  createShippingOrder
-);
 
 // User routes - History before generic get
 router.get("/history", authenticateToken, checkUser, getUserOrders);
+router.post("/cancel/:orderId", authenticateToken, checkUser, cancelOrder);
 
 // Generic routes - MUST come last
 router.post("/", authenticateToken, checkUser, createOrder);

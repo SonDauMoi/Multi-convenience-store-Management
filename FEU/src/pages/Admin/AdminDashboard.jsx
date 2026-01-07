@@ -89,11 +89,14 @@ const AdminDashboardClean = () => {
       setLoading(true);
       const token = getAccessToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const [usersRes, managersRes, storesRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/user`, { headers }),
-        axios.get(`${API_BASE_URL}/user/managers`, { headers }),
-        axios.get(`${API_BASE_URL}/stores`),
-      ]);
+      const [usersRes, managersRes, storesRes, productsRes] = await Promise.all(
+        [
+          axios.get(`${API_BASE_URL}/user`, { headers }),
+          axios.get(`${API_BASE_URL}/user/managers`, { headers }),
+          axios.get(`${API_BASE_URL}/stores`),
+          axios.get(`${API_BASE_URL}/admin/product-templates`, { headers }),
+        ]
+      );
       setUsers(usersRes.data);
       setManagers(managersRes.data);
       setStores(storesRes.data);
@@ -102,6 +105,7 @@ const AdminDashboardClean = () => {
         totalUsers: usersRes.data.length,
         totalManagers: managersRes.data.length,
         totalStores: storesRes.data.length,
+        totalProducts: productsRes.data.length,
       }));
     } catch (e) {
       console.error(e);

@@ -1,5 +1,4 @@
 import initUserModel from "./user.model.js";
-import initProductModel from "./product.model.js";
 import initCartModel from "./cart.model.js";
 import initOrderDetailModel from "./orderDetail.model.js";
 import initOrderModel from "./order.model.js";
@@ -13,7 +12,6 @@ import { sequelize } from "../config/database.js";
 
 // Initialize models
 const User = initUserModel(sequelize);
-const Product = initProductModel(sequelize);
 const Cart = initCartModel(sequelize);
 const OrderDetail = initOrderDetailModel(sequelize);
 const Order = initOrderModel(sequelize);
@@ -27,9 +25,6 @@ const StoreProduct = initStoreProductModel(sequelize);
 // --- Define Associations ---
 
 // Store Associations
-Store.hasMany(Product, { foreignKey: "storeId", as: "products" });
-Product.belongsTo(Store, { foreignKey: "storeId", as: "store" });
-
 Store.hasMany(Order, { foreignKey: "storeId", as: "orders" });
 Order.belongsTo(Store, { foreignKey: "storeId", as: "store" });
 
@@ -40,9 +35,9 @@ User.belongsTo(Store, { foreignKey: "storeId", as: "store" });
 User.hasMany(Cart, { foreignKey: "userId" });
 Cart.belongsTo(User, { foreignKey: "userId" });
 
-// Product-Cart Association
-Product.hasMany(Cart, { foreignKey: "productId" });
-Cart.belongsTo(Product, { foreignKey: "productId" });
+// StoreProduct-Cart Association (MỚI - thay thế Product-Cart)
+StoreProduct.hasMany(Cart, { foreignKey: "storeProductId" });
+Cart.belongsTo(StoreProduct, { foreignKey: "storeProductId" });
 
 // User-Order Association
 User.hasMany(Order, { as: "userOrders", foreignKey: "studentId" });
@@ -51,12 +46,12 @@ Order.belongsTo(User, { as: "user", foreignKey: "studentId" });
 Order.belongsTo(User, { as: "manager", foreignKey: "staffId" });
 
 // Order-OrderDetail Association
-Order.hasMany(OrderDetail, { foreignKey: "orderId" });
+Order.hasMany(OrderDetail, { foreignKey: "orderId", as: "orderDetails" });
 OrderDetail.belongsTo(Order, { foreignKey: "orderId" });
 
-// Product-OrderDetail Association
-Product.hasMany(OrderDetail, { foreignKey: "productId" });
-OrderDetail.belongsTo(Product, { foreignKey: "productId" });
+// StoreProduct-OrderDetail Association (MỚI)
+StoreProduct.hasMany(OrderDetail, { foreignKey: "storeProductId" });
+OrderDetail.belongsTo(StoreProduct, { foreignKey: "storeProductId" });
 
 // ProductTemplate - StoreProduct - Store Associations
 ProductTemplate.hasMany(StoreProduct, {
@@ -72,7 +67,7 @@ Store.hasMany(StoreProduct, { foreignKey: "store_id", as: "storeProducts" });
 StoreProduct.belongsTo(Store, { foreignKey: "store_id", as: "store" });
 
 const syncModels = async () => {
-  await sequelize.sync({ alter: true });
+  // await sequelize.sync({ alter: true });
   console.log("🔄 All models were synchronized successfully.");
 };
 
@@ -80,7 +75,6 @@ export {
   sequelize,
   syncModels,
   User,
-  Product,
   Cart,
   OrderDetail,
   Order,

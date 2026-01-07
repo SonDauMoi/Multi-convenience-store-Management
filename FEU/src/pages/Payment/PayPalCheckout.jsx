@@ -4,11 +4,14 @@ import { createPayPalOrderAPI } from "../../api/order";
 const PayPalCheckout = ({
   userId,
   totalAmount,
+  orderId,
+  onCreateOrder,
   currency = "USD",
   onSuccess,
   onError,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [creatingOrder, setCreatingOrder] = useState(false);
   const [error, setError] = useState(null);
 
   const handlePayPalPayment = async () => {
@@ -16,11 +19,24 @@ const PayPalCheckout = ({
     setError(null);
 
     try {
-      // Tạo PayPal order
+      // Nếu chưa có orderId, tạo order trước
+      let finalOrderId = orderId;
+      if (!finalOrderId && onCreateOrder) {
+        setCreatingOrder(true);
+        finalOrderId = await onCreateOrder();
+        setCreatingOrder(false);
+
+        if (!finalOrderId) {
+          throw new Error("Không thể tạo đơn hàng");
+        }
+      }
+
+      // Tạo PayPal order với orderId đã có
       const response = await createPayPalOrderAPI({
         user_id: userId,
         totalAmount: totalAmount,
         currency: currency,
+        orderId: finalOrderId,
       });
 
       // Tìm link approve từ response
@@ -42,6 +58,7 @@ const PayPalCheckout = ({
       }
     } finally {
       setLoading(false);
+      setCreatingOrder(false);
     }
   };
 
@@ -55,12 +72,12 @@ const PayPalCheckout = ({
 
       <button
         onClick={handlePayPalPayment}
-        disabled={loading}
+        disabled={loading || creatingOrder}
         className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${
-          loading ? "opacity-50 cursor-not-allowed" : ""
+          loading || creatingOrder ? "opacity-50 cursor-not-allowed" : ""
         }`}
       >
-        {loading ? (
+        {loading || creatingOrder ? (
           <>
             <svg
               className="animate-spin h-5 w-5 text-white"
@@ -82,7 +99,7 @@ const PayPalCheckout = ({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            Đang xử lý...
+            {creatingOrder ? "Đang tạo đơn hàng..." : "Đang xử lý..."}
           </>
         ) : (
           <>

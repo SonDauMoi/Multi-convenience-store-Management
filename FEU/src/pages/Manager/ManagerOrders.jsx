@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { setLoading } from "../../store/features/common";
+import Modal from "../../components/Modal";
 import {
   getPendingOrdersAPI,
   getManagerOrdersAPI,
@@ -16,6 +17,13 @@ const ManagerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showShippingModal, setShowShippingModal] = useState(false);
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
   const [shippingData, setShippingData] = useState({
     toName: "",
     toPhone: "",
@@ -52,86 +60,151 @@ const ManagerOrders = () => {
       setOrders(filtered);
     } catch (error) {
       console.error("Load orders failed:", error);
-      alert("Không thể tải danh sách đơn hàng");
+      setModalState({
+        isOpen: true,
+        type: "error",
+        title: "Lỗi tải đơn hàng",
+        message: "Không thể tải danh sách đơn hàng",
+        onConfirm: null,
+      });
     } finally {
       dispatch(setLoading(false));
     }
   };
 
   const handleAcceptOrder = async (orderId) => {
-    if (!confirm("Xác nhận duyệt đơn hàng này?")) return;
-
-    try {
-      dispatch(setLoading(true));
-      await acceptOrderAPI(orderId);
-      alert("Đã duyệt đơn hàng thành công");
-      loadOrders();
-    } catch (error) {
-      alert(
-        "Duyệt đơn thất bại: " +
-          (error.response?.data?.message || error.message)
-      );
-    } finally {
-      dispatch(setLoading(false));
-    }
+    setModalState({
+      isOpen: true,
+      type: "warning",
+      title: "Xác nhận duyệt đơn",
+      message: "Xác nhận duyệt đơn hàng này?",
+      onConfirm: async () => {
+        try {
+          dispatch(setLoading(true));
+          await acceptOrderAPI(orderId);
+          setModalState({
+            isOpen: true,
+            type: "success",
+            title: "Thành công",
+            message: "Đã duyệt đơn hàng thành công",
+            onConfirm: null,
+          });
+          loadOrders();
+        } catch (error) {
+          setModalState({
+            isOpen: true,
+            type: "error",
+            title: "Lỗi duyệt đơn",
+            message:
+              "Duyệt đơn thất bại: " +
+              (error.response?.data?.message || error.message),
+            onConfirm: null,
+          });
+        } finally {
+          dispatch(setLoading(false));
+        }
+      },
+    });
   };
 
   const handleDeclineOrder = async (orderId) => {
-    if (!confirm("Xác nhận từ chối đơn hàng này? Hàng sẽ được hoàn lại kho."))
-      return;
-
-    try {
-      dispatch(setLoading(true));
-      await declineOrderAPI(orderId);
-      alert("Đã từ chối đơn hàng");
-      loadOrders();
-    } catch (error) {
-      alert(
-        "Từ chối đơn thất bại: " +
-          (error.response?.data?.message || error.message)
-      );
-    } finally {
-      dispatch(setLoading(false));
-    }
+    setModalState({
+      isOpen: true,
+      type: "warning",
+      title: "Xác nhận từ chối",
+      message: "Xác nhận từ chối đơn hàng này? Hàng sẽ được hoàn lại kho.",
+      onConfirm: async () => {
+        try {
+          dispatch(setLoading(true));
+          await declineOrderAPI(orderId);
+          setModalState({
+            isOpen: true,
+            type: "success",
+            title: "Thành công",
+            message: "Đã từ chối đơn hàng",
+            onConfirm: null,
+          });
+          loadOrders();
+        } catch (error) {
+          setModalState({
+            isOpen: true,
+            type: "error",
+            title: "Lỗi từ chối đơn",
+            message:
+              "Từ chối đơn thất bại: " +
+              (error.response?.data?.message || error.message),
+            onConfirm: null,
+          });
+        } finally {
+          dispatch(setLoading(false));
+        }
+      },
+    });
   };
 
   const handleCreateShipping = async () => {
     try {
       dispatch(setLoading(true));
       const result = await createShippingAPI(selectedOrder.id, shippingData);
-      alert(
-        `Tạo đơn GHN thành công!\nMã vận đơn: ${
+      setModalState({
+        isOpen: true,
+        type: "success",
+        title: "Tạo đơn GHN thành công",
+        message: `Mã vận đơn: ${
           result.shipping.code
-        }\nPhí ship: ${result.shipping.fee.toLocaleString()}đ`
-      );
+        }\nPhí ship: ${result.shipping.fee.toLocaleString()}đ`,
+        onConfirm: null,
+      });
       setShowShippingModal(false);
       loadOrders();
     } catch (error) {
-      alert(
-        "Tạo đơn GHN thất bại: " +
-          (error.response?.data?.message || error.message)
-      );
+      setModalState({
+        isOpen: true,
+        type: "error",
+        title: "Lỗi tạo đơn GHN",
+        message:
+          "Tạo đơn GHN thất bại: " +
+          (error.response?.data?.message || error.message),
+        onConfirm: null,
+      });
     } finally {
       dispatch(setLoading(false));
     }
   };
 
   const handleCompleteOrder = async (orderId) => {
-    if (!confirm("Xác nhận đơn hàng đã giao thành công?")) return;
-
-    try {
-      dispatch(setLoading(true));
-      await completeOrderAPI(orderId);
-      alert("Đã hoàn thành đơn hàng");
-      loadOrders();
-    } catch (error) {
-      alert(
-        "Hoàn thành đơn thất bại: " +
-          (error.response?.data?.message || error.message)
-      );
-    } finally {
-      dispatch(setLoading(false));
-    }
+    setModalState({
+      isOpen: true,
+      type: "warning",
+      title: "Xác nhận hoàn thành",
+      message: "Xác nhận đơn hàng đã giao thành công?",
+      onConfirm: async () => {
+        try {
+          dispatch(setLoading(true));
+          await completeOrderAPI(orderId);
+          setModalState({
+            isOpen: true,
+            type: "success",
+            title: "Thành công",
+            message: "Đã hoàn thành đơn hàng",
+            onConfirm: null,
+          });
+          loadOrders();
+        } catch (error) {
+          setModalState({
+            isOpen: true,
+            type: "error",
+            title: "Lỗi hoàn thành đơn",
+            message:
+              "Hoàn thành đơn thất bại: " +
+              (error.response?.data?.message || error.message),
+            onConfirm: null,
+          });
+        } finally {
+          dispatch(setLoading(false));
+        }
+      },
+    });
   };
 
   const getStatusBadge = (status) => {
@@ -162,6 +235,11 @@ const ManagerOrders = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Modal
+        {...modalState}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+      />
+
       <h1 className="text-3xl font-bold mb-6">Quản lý đơn hàng</h1>
 
       {/* Tabs */}

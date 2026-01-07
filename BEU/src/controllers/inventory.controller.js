@@ -1,6 +1,12 @@
 // src/controllers/inventory.controller.js
 import { Op } from "sequelize";
-import { Product, Cart, User, Store } from "../models/index.js";
+import {
+  StoreProduct,
+  ProductTemplate,
+  Cart,
+  User,
+  Store,
+} from "../models/index.js";
 
 /**
  * Thêm sản phẩm mới (Manager/Admin)
@@ -59,14 +65,14 @@ export const addProduct = async (req, res) => {
     }
 
     // Tạo sản phẩm mới
-    const newProduct = await Product.create({
+    const newProduct = await StoreProduct.create({
       name,
       quantity: quantity || 0,
       price,
       description,
       preparation_time,
       image,
-      storeId,
+      store_id: storeId,
     });
 
     res.status(201).json({
@@ -112,13 +118,13 @@ export const getProducts = async (req, res) => {
     // Build điều kiện tìm kiếm
     const whereCondition = {};
     if (storeId) {
-      whereCondition.storeId = storeId;
+      whereCondition.store_id = storeId;
     }
     if (search) {
       whereCondition.name = { [Op.iLike]: `%${search}%` };
     }
 
-    const products = await Product.findAll({
+    const products = await StoreProduct.findAll({
       where: whereCondition,
       order: [["id", "DESC"]],
       raw: true,
@@ -145,7 +151,7 @@ export const getProductById = async (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
-    const product = await Product.findByPk(id, {
+    const product = await StoreProduct.findByPk(id, {
       include: [
         {
           model: Store,
@@ -163,7 +169,7 @@ export const getProductById = async (req, res) => {
     }
 
     // Kiểm tra quyền truy cập - if user exists, must be authorized for the store
-    if (user && user.role !== "admin" && product.storeId !== user.storeId) {
+    if (user && user.role !== "admin" && product.store_id !== user.storeId) {
       return res.status(403).json({
         success: false,
         message: "Không có quyền xem sản phẩm này",
@@ -194,7 +200,7 @@ export const updateProduct = async (req, res) => {
     const user = req.user;
 
     // Tìm sản phẩm
-    const product = await Product.findByPk(id);
+    const product = await StoreProduct.findByPk(id);
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -203,7 +209,7 @@ export const updateProduct = async (req, res) => {
     }
 
     // Kiểm tra quyền
-    if (user.role !== "admin" && product.storeId !== user.storeId) {
+    if (user.role !== "admin" && product.store_id !== user.storeId) {
       return res.status(403).json({
         success: false,
         message: "Không có quyền cập nhật sản phẩm này",
@@ -251,7 +257,7 @@ export const deleteProduct = async (req, res) => {
     const user = req.user;
 
     // Tìm sản phẩm
-    const product = await Product.findByPk(id);
+    const product = await StoreProduct.findByPk(id);
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -260,7 +266,7 @@ export const deleteProduct = async (req, res) => {
     }
 
     // Kiểm tra quyền
-    if (user.role !== "admin" && product.storeId !== user.storeId) {
+    if (user.role !== "admin" && product.store_id !== user.storeId) {
       return res.status(403).json({
         success: false,
         message: "Không có quyền xóa sản phẩm này",
@@ -269,7 +275,7 @@ export const deleteProduct = async (req, res) => {
 
     // Kiểm tra xem sản phẩm có trong giỏ hàng nào không
     const cartItems = await Cart.findAll({
-      where: { productId: id },
+      where: { storeProductId: id },
     });
 
     if (cartItems.length > 0) {
@@ -313,7 +319,7 @@ export const updateStock = async (req, res) => {
     }
 
     // Tìm sản phẩm
-    const product = await Product.findByPk(id);
+    const product = await StoreProduct.findByPk(id);
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -322,7 +328,7 @@ export const updateStock = async (req, res) => {
     }
 
     // Kiểm tra quyền
-    if (user.role !== "admin" && product.storeId !== user.storeId) {
+    if (user.role !== "admin" && product.store_id !== user.storeId) {
       return res.status(403).json({
         success: false,
         message: "Không có quyền cập nhật tồn kho sản phẩm này",
@@ -368,27 +374,27 @@ export const getInventoryStats = async (req, res) => {
     }
 
     // Thống kê tổng quan
-    const totalProducts = await Product.count({
-      where: { storeId },
+    const totalProducts = await StoreProduct.count({
+      where: { store_id: storeId },
     });
 
-    const lowStockProducts = await Product.count({
+    const lowStockProducts = await StoreProduct.count({
       where: {
-        storeId,
+        store_id: storeId,
         quantity: { [Op.lt]: 10 }, // Sản phẩm sắp hết hàng (< 10)
       },
     });
 
-    const outOfStockProducts = await Product.count({
+    const outOfStockProducts = await StoreProduct.count({
       where: {
-        storeId,
+        store_id: storeId,
         quantity: 0,
       },
     });
 
     // Tổng giá trị inventory
-    const inventoryValue = await Product.sum("price", {
-      where: { storeId },
+    const inventoryValue = await StoreProduct.sum("price", {
+      where: { store_id: storeId },
     });
 
     res.json({

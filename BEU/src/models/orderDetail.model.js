@@ -11,7 +11,7 @@ export default (sequelize) => {
         primaryKey: true,
       },
       orderId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      storeProductId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false }, // Reference to store_products table
       name: { type: DataTypes.STRING, allowNull: false },
       quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       price: { type: DataTypes.DOUBLE, allowNull: false },

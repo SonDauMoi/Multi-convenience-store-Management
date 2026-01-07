@@ -113,7 +113,7 @@ const Navigation = () => {
                             setSearchOpen(false);
                             setSearchTerm("");
                             setSearchResults([]);
-                            navigate(`/product/${product.slug}`);
+                            navigate(`/product/${product.id}`);
                           }}
                         >
                           <img
@@ -152,11 +152,18 @@ const Navigation = () => {
       <nav className="fixed top-0 left-0 right-0 z-10 hidden lg:flex items-center py-4 px-4 lg:py-6 lg:px-10 xl:px-16 justify-between bg-white border-b border-gray-200">
         {/* Logo */}
         <div className="flex items-center">
-          <NavLink
-            to="/"
-            className="text-2xl lg:text-3xl font-bold text-blue-600"
-          >
-            ConveniMart
+          <NavLink to="/" className="flex items-center gap-3">
+            <img
+              src="/S-store logo.jpg"
+              alt="S-Store Logo"
+              className="w-10 h-10 lg:w-12 lg:h-12 object-contain"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+            <span className="text-2xl lg:text-3xl font-bold text-gray-900">
+              S-Store
+            </span>
           </NavLink>
         </div>
         {/* Main menu */}
@@ -165,6 +172,11 @@ const Navigation = () => {
             <li>
               <NavLink to="/food" className={navLinkClass}>
                 Thực phẩm
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/snack" className={navLinkClass}>
+                Đồ ăn vặt
               </NavLink>
             </li>
             <li>
@@ -179,7 +191,7 @@ const Navigation = () => {
             </li>
             <li>
               <NavLink to="/personal" className={navLinkClass}>
-                Cá nhân
+                Chăm sóc cá nhân
               </NavLink>
             </li>
             <li>
@@ -233,8 +245,16 @@ const Navigation = () => {
 
       {/* Hamburger + Mobile Menu Overlay */}
       <div className="lg:hidden flex items-center py-4 px-4 justify-between fixed top-0 left-0 right-0 z-[100] bg-white border-b border-gray-200">
-        <NavLink to="/" className="text-2xl font-bold text-blue-600">
-          ConveniMart
+        <NavLink to="/" className="flex items-center gap-2">
+          <img
+            src="/S-store logo.jpg"
+            alt="S-Store Logo"
+            className="w-10 h-10 object-contain"
+            onError={(e) => {
+              e.target.style.display = "none";
+            }}
+          />
+          <span className="text-2xl font-bold text-gray-900">S-Store</span>
         </NavLink>
         <div className="flex items-center gap-3">
           <button
@@ -291,9 +311,19 @@ const Navigation = () => {
                 <NavLink
                   to="/"
                   onClick={() => setMenuOpen(false)}
-                  className="text-xl font-bold text-blue-600"
+                  className="flex items-center gap-2"
                 >
-                  ConveniMart
+                  <img
+                    src="/S-store logo.jpg"
+                    alt="S-Store Logo"
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                  <span className="text-xl font-bold text-gray-900">
+                    S-Store
+                  </span>
                 </NavLink>
               </div>
               <ul className="flex flex-col gap-6 px-6 py-6">
@@ -304,6 +334,15 @@ const Navigation = () => {
                     onClick={() => setMenuOpen(false)}
                   >
                     Thực phẩm
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/snack"
+                    className={navLinkClass}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Đồ ăn vặt
                   </NavLink>
                 </li>
                 <li>
@@ -330,7 +369,7 @@ const Navigation = () => {
                     className={navLinkClass}
                     onClick={() => setMenuOpen(false)}
                   >
-                    Cá nhân
+                    Chăm sóc cá nhân
                   </NavLink>
                 </li>
                 <li>

@@ -7,6 +7,7 @@ import { loadCategories } from "./store/features/category";
 import Modal from "react-modal";
 import NewArrivals from "./components/Sections/NewArrivals.jsx";
 import Bycategory from "./components/Sections/Bycategory.jsx";
+import BannerCarousel from "./components/Banner/BannerCarousel.jsx";
 
 Modal.setAppElement("#root");
 
@@ -30,6 +31,7 @@ function App() {
   return (
     <>
       <div className="App">
+        <BannerCarousel />
         <NewArrivals />
         <Bycategory />
       </div>

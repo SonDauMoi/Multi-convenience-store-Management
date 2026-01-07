@@ -32,7 +32,11 @@ export const getAllProducts = async ({
 };
 
 export const getProductBySlug = async (slug) => {
-  const url = API_BASE_URL + API_URL.GET_PRODUCTS + `?slug=${slug}`;
+  // Check if slug is actually an ID (numeric)
+  const isId = !isNaN(slug);
+  const queryParam = isId ? `id=${slug}` : `slug=${slug}`;
+  const url = API_BASE_URL + API_URL.GET_PRODUCTS + `?${queryParam}`;
+
   try {
     const result = await axios(url, {
       method: "GET",
@@ -40,5 +44,6 @@ export const getProductBySlug = async (slug) => {
     return result?.data?.[0];
   } catch (err) {
     console.error(err);
+    throw err;
   }
 };

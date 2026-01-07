@@ -19,6 +19,21 @@ export default (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      provinceId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "province_id",
+      },
+      districtId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "district_id",
+      },
+      wardId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "ward_id",
+      },
     },
     {
       tableName: "stores",

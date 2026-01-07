@@ -43,23 +43,7 @@
           }
         ]
       },
-      {
-        "title": "Liên hệ",
-        "list": [
-          {
-            "label": "Hotline: 1900-xxxx",
-            "path": "/"
-          },
-          {
-            "label": "Email: support@store.com",
-            "path": "/"
-          },
-          {
-            "label": "Địa chỉ: TP.HCM, Việt Nam",
-            "path": "/"
-          }
-        ]
-      },
+
       {
         "title": "Mạng xã hội",
         "list": [

@@ -10,15 +10,23 @@ const Footer = ({ content }) => {
             <a
               href="/"
               aria-label="Go home"
-              title="ConveniMart"
-              className="inline-flex items-center justify-center lg:justify-start text-3xl font-bold text-blue-600"
+              title="S-Store"
+              className="inline-flex items-center justify-center lg:justify-start gap-3"
             >
-              ConveniMart
+              <img
+                src="/S-store logo.jpg"
+                alt="S-Store Logo"
+                className="w-12 h-12 object-contain"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
+              />
+              <span className="text-3xl font-bold text-gray-900">S-Store</span>
             </a>
             <div className="mt-4 md:max-w-xl lg:max-w-sm mx-auto lg:mx-0">
               <p className="text-sm text-gray-700 leading-relaxed">
-                Cửa hàng tiện lợi trực tuyến cung cấp đa dạng sản phẩm từ thực
-                phẩm, đồ uống đến đồ gia dụng và chăm sóc cá nhân.
+                Chuỗi cửa hàng tiện lợi đa địa điểm cung cấp sản phẩm chất lượng
+                từ thực phẩm, đồ uống đến đồ gia dụng.
               </p>
               <p className="mt-4 text-sm text-gray-700 leading-relaxed">
                 Cam kết chất lượng, giá cả hợp lý, giao hàng nhanh chóng trong
@@ -62,7 +70,7 @@ const Footer = ({ content }) => {
               VNPay
             </span>
             <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded text-xs font-medium">
-              MoMo
+              Paypal
             </span>
             <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
               Stripe

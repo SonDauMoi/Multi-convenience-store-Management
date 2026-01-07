@@ -1,4 +1,4 @@
-import { Cart, Product } from "../models/index.js";
+import { Cart, StoreProduct, Store } from "../models/index.js";
 
 // Lấy giỏ hàng của người dùng
 export const getCart = async (req, res) => {
@@ -14,14 +14,20 @@ export const getCart = async (req, res) => {
 // Tăng số lượng sản phẩm trong giỏ hàng
 export const addProduct = async (req, res) => {
   try {
-    const { productId } = req.body;
+    const { storeProductId } = req.body;
     const userId = req.user.id;
 
-    const cartItem = await Cart.findOne({ where: { productId, userId } });
+    const cartItem = await Cart.findOne({ where: { storeProductId, userId } });
     if (!cartItem) {
       return res
         .status(404)
         .json({ message: "Sản phẩm không có trong giỏ hàng" });
+    }
+
+    // Kiểm tra tồn kho từ StoreProduct
+    const storeProduct = await StoreProduct.findByPk(storeProductId);
+    if (!storeProduct || storeProduct.quantity < cartItem.quantity + 1) {
+      return res.status(400).json({ message: "Không đủ số lượng trong kho" });
     }
 
     cartItem.quantity += 1;
@@ -37,10 +43,10 @@ export const addProduct = async (req, res) => {
 // Giảm số lượng sản phẩm trong giỏ hàng
 export const minusProduct = async (req, res) => {
   try {
-    const { productId } = req.body;
+    const { storeProductId } = req.body;
     const userId = req.user.id;
 
-    const cartItem = await Cart.findOne({ where: { productId, userId } });
+    const cartItem = await Cart.findOne({ where: { storeProductId, userId } });
     if (!cartItem) {
       return res
         .status(404)
@@ -64,10 +70,12 @@ export const minusProduct = async (req, res) => {
 // Xóa sản phẩm khỏi giỏ hàng
 export const removeProduct = async (req, res) => {
   try {
-    const { productId } = req.body;
+    const { storeProductId } = req.body;
     const userId = req.user.id;
 
-    const deletedCount = await Cart.destroy({ where: { productId, userId } });
+    const deletedCount = await Cart.destroy({
+      where: { storeProductId, userId },
+    });
     if (deletedCount === 0) {
       return res
         .status(404)
@@ -83,33 +91,40 @@ export const removeProduct = async (req, res) => {
 // Thêm sản phẩm vào giỏ hàng (tự động lấy info từ database)
 export const addToCart = async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
+    const { storeProductId, quantity } = req.body;
     const userId = req.user.id;
 
-    if (!productId || !quantity || quantity <= 0) {
+    if (!storeProductId || !quantity || quantity <= 0) {
       return res
         .status(400)
-        .json({ message: "Vui lòng nhập productId và quantity > 0" });
+        .json({ message: "Vui lòng nhập storeProductId và quantity > 0" });
     }
 
-    const product = await Product.findByPk(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Sản phẩm không tồn tại" });
+    // Lấy thông tin sản phẩm từ StoreProduct (kèm ProductTemplate và Store)
+    const storeProduct = await StoreProduct.findByPk(storeProductId, {
+      include: [{ association: "productTemplate" }, { association: "store" }],
+    });
+
+    if (!storeProduct) {
+      return res
+        .status(404)
+        .json({ message: "Sản phẩm không tồn tại trong cửa hàng" });
     }
 
-    if (product.quantity < quantity) {
+    // Kiểm tra tồn kho
+    if (storeProduct.quantity < quantity) {
       return res.status(400).json({
-        message: `Không đủ số lượng. Kho có ${product.quantity}, yêu cầu ${quantity}`,
+        message: `Không đủ số lượng. Kho có ${storeProduct.quantity}, yêu cầu ${quantity}`,
       });
     }
 
-    let cartItem = await Cart.findOne({ where: { productId, userId } });
+    let cartItem = await Cart.findOne({ where: { storeProductId, userId } });
 
     if (cartItem) {
       const newQuantity = cartItem.quantity + quantity;
-      if (product.quantity < newQuantity) {
+      if (storeProduct.quantity < newQuantity) {
         return res.status(400).json({
-          message: `Không đủ số lượng. Kho có ${product.quantity}, yêu cầu ${newQuantity}`,
+          message: `Không đủ số lượng. Kho có ${storeProduct.quantity}, yêu cầu ${newQuantity}`,
         });
       }
 
@@ -121,12 +136,14 @@ export const addToCart = async (req, res) => {
     } else {
       cartItem = await Cart.create({
         userId,
-        productId,
-        name: product.name,
-        image: product.image,
-        price: product.price,
+        storeProductId,
+        storeId: storeProduct.storeId,
+        storeName: storeProduct.store?.name || "N/A",
+        name: storeProduct.productTemplate?.name || "N/A",
+        image: storeProduct.productTemplate?.image || null,
+        price: storeProduct.productTemplate?.price || 0,
         quantity,
-        total: product.price * quantity,
+        total: (storeProduct.productTemplate?.price || 0) * quantity,
       });
 
       res.status(201).json({ message: "Thêm vào giỏ hàng", cartItem });

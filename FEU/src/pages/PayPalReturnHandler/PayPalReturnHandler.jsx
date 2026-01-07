@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { capturePayPalOrderAPI } from "../../api/order";
+import { deleteCart } from "../../store/features/cart";
+import { getUserInfo } from "../../utils/jwt-helper";
 
 const PayPalReturnHandler = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -13,7 +17,7 @@ const PayPalReturnHandler = () => {
     const handlePayPalReturn = async () => {
       // Lấy token (orderID) từ URL
       const token = searchParams.get("token");
-      const payerId = searchParams.get("PayerID");
+      console.log("[PayPal Return] Token from URL:", token);
 
       if (!token) {
         setError("Thiếu thông tin thanh toán từ PayPal");
@@ -22,40 +26,104 @@ const PayPalReturnHandler = () => {
       }
 
       try {
-        // Lấy user_id từ localStorage hoặc Redux
-        const userId = localStorage.getItem("userId") || 1; // Cần điều chỉnh theo logic app của bạn
+        // Lấy order data từ localStorage
+        const orderDataStr = localStorage.getItem("checkout_orderData");
+        const userInfo = getUserInfo();
+        const userIdFromJwt = userInfo?.userId;
+        const userIdFromCheckout = Number(
+          localStorage.getItem("checkout_userId")
+        );
+        const userId =
+          userIdFromJwt ||
+          (Number.isFinite(userIdFromCheckout)
+            ? userIdFromCheckout
+            : undefined);
 
-        // Gọi API capture PayPal order
+        console.log("[PayPal Return] User info:", {
+          userIdFromJwt,
+          userIdFromCheckout,
+          userId,
+        });
+        console.log("[PayPal Return] Has orderData:", !!orderDataStr);
+
+        if (!orderDataStr) {
+          throw new Error("Không tìm thấy thông tin đơn hàng");
+        }
+
+        const orderData = JSON.parse(orderDataStr);
+        console.log("[PayPal Return] OrderData:", {
+          storeId: orderData.storeId,
+          itemsCount: orderData.items?.length,
+        });
+
+        // Capture PayPal payment và tạo đơn hàng
+        console.log("[PayPal Return] Calling capturePayPalOrderAPI...");
         const response = await capturePayPalOrderAPI({
           orderID: token,
-          user_id: parseInt(userId),
+          ...(userId ? { user_id: parseInt(userId) } : {}),
+          storeId: parseInt(orderData.storeId),
+          orderData: orderData, // Send order data to backend
+        });
+
+        console.log("[PayPal Return] Capture response:", {
+          paypalStatus: response.paypalStatus,
+          orderId: response.order?.id,
+          hasOrder: !!response.order,
         });
 
         if (response.paypalStatus === "COMPLETED") {
           setSuccess(true);
           setLoading(false);
 
-          // Chuyển đến trang xác nhận sau 2 giây
+          // Xóa giỏ hàng Redux
+          dispatch(deleteCart());
+
+          // Clean up localStorage
+          localStorage.removeItem("checkout_storeId");
+          localStorage.removeItem("checkout_orderData");
+          localStorage.removeItem("checkout_userId");
+          console.log("[PayPal Return] Cleaned up localStorage");
+
+          // Chuyển đến trang đơn hàng sau 2 giây
           setTimeout(() => {
-            navigate("/order-confirmed", {
-              state: {
-                orderId: response.order?.id,
-                paypalOrderId: response.paypalOrderId,
-              },
+            const orderId = response.order?.id;
+            const amount = response.capturedAmount;
+            const currency = response.capturedCurrency;
+            const params = new URLSearchParams({
+              ...(orderId ? { orderId: String(orderId) } : {}),
+              status: "success",
+              ...(amount ? { amount: String(amount) } : {}),
+              ...(currency ? { currency: String(currency) } : {}),
+              ...(response.paypalOrderId
+                ? { paypalOrderId: String(response.paypalOrderId) }
+                : {}),
             });
+            console.log(
+              "[PayPal Return] Navigating to:",
+              `/orderConfirmed?${params.toString()}`
+            );
+            navigate(`/orderConfirmed?${params.toString()}`);
           }, 2000);
         } else {
           throw new Error("Thanh toán chưa hoàn tất");
         }
       } catch (err) {
-        console.error("Lỗi khi capture PayPal order:", err);
-        setError(err.message || "Có lỗi xảy ra khi xử lý thanh toán");
+        console.error("[PayPal Return] Error:", {
+          message: err.message,
+          response: err.response?.data,
+          stack: err.stack,
+        });
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Có lỗi xảy ra khi xử lý thanh toán"
+        );
         setLoading(false);
       }
     };
 
     handlePayPalReturn();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, dispatch]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

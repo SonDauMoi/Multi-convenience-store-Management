@@ -1,13 +1,21 @@
 import { Op } from "sequelize";
-import { Cart, Order, OrderDetail, User, Product } from "../models/index.js";
+import {
+  Cart,
+  Order,
+  OrderDetail,
+  User,
+  StoreProduct,
+  ProductTemplate,
+} from "../models/index.js";
 import { sequelize } from "../config/database.js";
-import { createGHNOrder } from "../services/ghn.service.js";
+import { refundPayPalPayment } from "./payment.controller.js";
 
 // Tạo đơn hàng mới (Người dùng)
 export const createOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { storeId, items, payment_method } = req.body;
+    const { storeId, items, payment_method, shipping_fee, shipping_address } =
+      req.body;
     const userId = req.user.userId; // JWT payload has userId not id
 
     console.log("📦 Create order request:", {
@@ -15,6 +23,8 @@ export const createOrder = async (req, res) => {
       storeId,
       itemsCount: items?.length,
       payment_method,
+      shipping_fee,
+      shipping_address,
     });
     console.log("📦 Items:", items);
 
@@ -31,37 +41,44 @@ export const createOrder = async (req, res) => {
       0
     );
     const discount = 0; // Có thể thêm logic tính discount sau
-    const final_price = total_price - discount;
+    const shippingFee = shipping_fee || 0;
+    const final_price = total_price - discount + shippingFee;
 
     console.log("💰 Order totals:", {
       total_quantity,
       total_price,
       discount,
+      shipping_fee: shippingFee,
       final_price,
     });
 
-    // Kiểm tra stock
+    // Kiểm tra stock trong StoreProduct
     for (const item of items) {
-      const product = await Product.findByPk(item.productId, { transaction });
-      if (
-        !product ||
-        product.quantity < item.quantity ||
-        product.storeId !== storeId
-      ) {
+      const storeProduct = await StoreProduct.findOne({
+        where: {
+          id: item.storeProductId, // Use StoreProduct ID directly
+        },
+        include: [{ model: ProductTemplate, as: "productTemplate" }],
+        transaction,
+      });
+
+      if (!storeProduct || storeProduct.quantity < item.quantity) {
         await transaction.rollback();
         return res.status(400).json({
           message: `${
-            product?.name || item.productId
+            storeProduct?.productTemplate?.name ||
+            item.name ||
+            item.storeProductId
           }: không đủ số lượng hoặc không có`,
         });
       }
     }
 
-    // Giảm stock
+    // Giảm stock trong StoreProduct
     for (const item of items) {
-      await Product.decrement("quantity", {
+      await StoreProduct.decrement("quantity", {
         by: item.quantity,
-        where: { id: item.productId, storeId },
+        where: { id: item.storeProductId }, // Use StoreProduct ID directly
         transaction,
       });
     }
@@ -74,17 +91,24 @@ export const createOrder = async (req, res) => {
         total_quantity,
         total_price,
         discount,
+        shipping_fee: shippingFee,
         final_price,
         payment_method,
         status: "pending",
         order_time: new Date(),
+        receiver_name: shipping_address?.name,
+        receiver_phone: shipping_address?.phone,
+        delivery_address: shipping_address?.address,
+        province_id: shipping_address?.provinceId,
+        district_id: shipping_address?.districtId,
+        ward_id: shipping_address?.wardId,
       },
       { transaction }
     );
 
     const orderDetails = items.map((item) => ({
       orderId: order.id,
-      productId: item.productId,
+      storeProductId: item.storeProductId, // Changed from store_product_id to match model
       name: item.name,
       quantity: item.quantity,
       price: item.price,
@@ -115,12 +139,49 @@ export const getUserOrders = async (req, res) => {
         {
           model: OrderDetail,
           as: "orderDetails",
-          attributes: ["name", "quantity"],
+          attributes: [
+            "id",
+            "name",
+            "quantity",
+            "price",
+            "total_price",
+            "storeProductId",
+          ],
         },
       ],
       order: [["order_time", "DESC"]],
     });
-    res.status(200).json(orders);
+
+    // Format dữ liệu cho frontend
+    const formattedOrders = orders.map((order) => ({
+      id: order.id,
+      orderDisplayCode: `ORD${String(order.id).padStart(6, "0")}`,
+      orderDate: order.order_time,
+      orderStatus: order.status ? order.status.toUpperCase() : "PENDING",
+      totalAmount: order.final_price,
+      shippingFee: order.shipping_fee || 0,
+      paymentMethod: order.payment_method,
+      address: {
+        name: order.receiver_name,
+        phoneNumber: order.receiver_phone,
+        street: order.delivery_address,
+        provinceId: order.province_id,
+        districtId: order.district_id,
+        wardId: order.ward_id,
+      },
+      orderItemList: order.orderDetails.map((item) => ({
+        id: item.id,
+        product: {
+          name: item.name,
+          price: item.price,
+          productResources: [],
+        },
+        quantity: item.quantity,
+        totalPrice: item.total_price,
+      })),
+    }));
+
+    res.status(200).json(formattedOrders);
   } catch (error) {
     console.error("getUserOrders error:", error);
     res.status(500).json({ message: "Lỗi server", error: error.message });
@@ -241,9 +302,9 @@ export const declineOrder = async (req, res) => {
 
     // Hoàn lại stock
     for (const item of order.orderDetails) {
-      await Product.increment("quantity", {
+      await StoreProduct.increment("quantity", {
         by: item.quantity,
-        where: { id: item.productId, storeId: order.storeId },
+        where: { id: item.storeProductId },
         transaction,
       });
     }
@@ -289,6 +350,151 @@ export const completeOrder = async (req, res) => {
   }
 };
 
+// Hủy đơn hàng (User)
+export const cancelOrder = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.userId;
+
+    console.log("🚫 Cancel order request:", { orderId, userId });
+
+    const order = await Order.findByPk(orderId, {
+      include: [{ model: OrderDetail, as: "orderDetails" }],
+      transaction,
+    });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+    }
+
+    // Kiểm tra quyền sở hữu
+    if (order.studentId !== userId) {
+      await transaction.rollback();
+      return res
+        .status(403)
+        .json({ message: "Không có quyền hủy đơn hàng này" });
+    }
+
+    // Chỉ cho phép hủy đơn ở trạng thái pending hoặc processing
+    const allowedStatuses = ["pending", "processing"];
+    if (!allowedStatuses.includes(order.status)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: "Chỉ có thể hủy đơn hàng đang chờ xử lý hoặc đang chuẩn bị",
+      });
+    }
+
+    // Kiểm tra phương thức thanh toán
+    const paymentMethod = order.payment_method?.toLowerCase();
+    const isPayPalPayment = paymentMethod === "paypal";
+
+    // Xác định tỷ lệ hoàn tiền dựa trên trạng thái
+    const refundPercentage = order.status === "pending" ? 100 : 50;
+    const refundAmount = (order.final_price * refundPercentage) / 100;
+
+    console.log(
+      "💳 Payment method:",
+      paymentMethod,
+      "| Status:",
+      order.status,
+      "| Refund:",
+      refundPercentage + "%"
+    );
+
+    // Xử lý hoàn tiền PayPal nếu cần
+    let refundResult = null;
+    if (isPayPalPayment && order.paypal_capture_id) {
+      console.log("[Cancel Order] Processing PayPal refund...");
+
+      // Gọi PayPal Refund API
+      refundResult = await refundPayPalPayment(
+        order.paypal_capture_id,
+        refundPercentage === 100 ? null : refundAmount // null = full refund
+      );
+
+      if (refundResult.success) {
+        order.refund_status = "completed";
+        order.refund_amount = parseFloat(refundResult.amount);
+        order.refund_time = new Date();
+        order.refund_id = refundResult.refundId;
+        order.notes = `Đã hoàn ${refundPercentage}% số tiền (${refundAmount.toLocaleString()} VND) - PayPal Refund ID: ${
+          refundResult.refundId
+        }`;
+        console.log("✅ PayPal refund successful:", refundResult.refundId);
+      } else {
+        order.refund_status = "failed";
+        order.notes = `[LỖI HOÀN TIỀN] PayPal refund failed: ${refundResult.error}. Admin cần xử lý thủ công.`;
+        console.error("❌ PayPal refund failed:", refundResult.error);
+      }
+    } else if (isPayPalPayment && !order.paypal_capture_id) {
+      // Không có capture ID, yêu cầu admin xử lý thủ công
+      order.refund_status = "pending";
+      order.notes = `[CẦN HOÀN TIỀN] Đơn hàng đã thanh toán PayPal - Số tiền cần hoàn: ${refundAmount.toLocaleString()} VND (${refundPercentage}%)`;
+      console.warn("⚠️ Missing PayPal capture_id, manual refund required");
+    }
+
+    // Hoàn trả lại số lượng sản phẩm vào kho
+    if (order.orderDetails && order.orderDetails.length > 0) {
+      for (const detail of order.orderDetails) {
+        if (detail.storeProductId) {
+          await StoreProduct.increment("quantity", {
+            by: detail.quantity,
+            where: { id: detail.storeProductId },
+            transaction,
+          });
+          console.log(
+            `✅ Restored ${detail.quantity} items to StoreProduct ID: ${detail.storeProductId}`
+          );
+        }
+      }
+    }
+
+    // Cập nhật trạng thái đơn hàng
+    order.status = "cancelled";
+    order.cancel_time = new Date();
+    order.cancel_reason = req.body.reason || "Khách hàng yêu cầu hủy";
+    await order.save({ transaction });
+
+    await transaction.commit();
+    console.log("✅ Order cancelled successfully:", orderId);
+
+    // Response với thông báo phù hợp
+    let responseMessage = "Đơn hàng đã được hủy thành công";
+
+    if (isPayPalPayment) {
+      if (refundResult?.success) {
+        responseMessage = `Đơn hàng đã được hủy và hoàn ${refundPercentage}% số tiền (${refundAmount.toLocaleString()} VND). Tiền sẽ về tài khoản PayPal trong 5-7 ngày làm việc.`;
+      } else if (order.refund_status === "failed") {
+        responseMessage = `Đơn hàng đã được hủy nhưng gặp lỗi khi hoàn tiền. Vui lòng liên hệ admin để xử lý.`;
+      } else if (order.refund_status === "pending") {
+        responseMessage = `Đơn hàng đã được hủy. Admin sẽ xử lý hoàn ${refundPercentage}% số tiền (${refundAmount.toLocaleString()} VND) trong thời gian sớm nhất.`;
+      }
+    }
+
+    res.status(200).json({
+      message: responseMessage,
+      order,
+      refundInfo: isPayPalPayment
+        ? {
+            refundPercentage,
+            refundAmount,
+            refundStatus: order.refund_status,
+            refundId: order.refund_id,
+            estimatedDays: refundResult?.success ? "5-7 ngày" : null,
+          }
+        : null,
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error("❌ Cancel order error:", error);
+    res.status(500).json({
+      message: "Lỗi server: " + error.message,
+    });
+  }
+};
+
 // Chuyển đơn sang trạng thái đang giao hàng (không cần GHN API)
 export const startShipping = async (req, res) => {
   try {
@@ -327,95 +533,6 @@ export const startShipping = async (req, res) => {
     console.error("❌ Start shipping error:", error);
     res.status(500).json({
       message: "Lỗi server: " + error.message,
-    });
-  }
-};
-
-// Tạo đơn vận chuyển (Manager)
-export const createShippingOrder = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const {
-      toName,
-      toPhone,
-      toAddress,
-      toWardCode,
-      toDistrictId,
-      weight,
-      codAmount,
-    } = req.body;
-
-    console.log("📦 Creating shipping order for:", orderId);
-
-    // Kiểm tra đơn hàng
-    const order = await Order.findByPk(orderId, {
-      include: [
-        {
-          model: OrderDetail,
-          as: "orderDetails",
-        },
-      ],
-    });
-
-    if (!order) {
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
-    }
-
-    if (order.status !== "processing") {
-      return res.status(400).json({
-        message: "Chỉ có thể tạo vận đơn cho đơn hàng đang xử lý",
-      });
-    }
-
-    if (order.storeId !== req.user.storeId) {
-      return res.status(403).json({ message: "Không có quyền" });
-    }
-
-    // Tạo đơn vận chuyển qua GHN
-    const ghnResult = await createGHNOrder({
-      toName,
-      toPhone,
-      toAddress,
-      toWardCode,
-      toDistrictId,
-      codAmount:
-        codAmount || (order.payment_method === "COD" ? order.final_price : 0),
-      weight: weight || 200,
-      items: order.orderDetails.map((item) => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    });
-
-    if (!ghnResult.success) {
-      return res.status(400).json({
-        message: "Không thể tạo đơn vận chuyển: " + ghnResult.message,
-      });
-    }
-
-    // Cập nhật order với thông tin vận chuyển
-    order.shipping_partner = "GHN";
-    order.shipping_code = ghnResult.orderCode;
-    order.shipping_fee = ghnResult.totalFee;
-    order.status = "shipping"; // Chuyển sang trạng thái đang giao
-    await order.save();
-
-    console.log("✅ Shipping order created:", ghnResult.orderCode);
-
-    res.status(200).json({
-      message: "Tạo đơn vận chuyển thành công",
-      order,
-      shipping: {
-        code: ghnResult.orderCode,
-        fee: ghnResult.totalFee,
-        expectedDelivery: ghnResult.expectedDeliveryTime,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Create shipping error:", error);
-    res.status(500).json({
-      message: "Lỗi tạo đơn vận chuyển: " + error.message,
     });
   }
 };

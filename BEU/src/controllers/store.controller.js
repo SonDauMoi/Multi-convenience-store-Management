@@ -5,13 +5,19 @@ import { Op } from "sequelize";
 // Create a new store (Admin only)
 export const createStore = async (req, res) => {
   try {
-    const { name, address } = req.body;
+    const { name, address, provinceId, districtId, wardId } = req.body;
     if (!name || !address) {
       return res
         .status(400)
         .json({ message: "Name and address are required." });
     }
-    const newStore = await Store.create({ name, address });
+    const newStore = await Store.create({
+      name,
+      address,
+      provinceId,
+      districtId,
+      wardId,
+    });
     res.status(201).json(newStore);
   } catch (error) {
     res
@@ -52,8 +58,15 @@ export const getStoreById = async (req, res) => {
 export const updateStore = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address } = req.body;
-    const [updated] = await Store.update({ name, address }, { where: { id } });
+    const { name, address, provinceId, districtId, wardId } = req.body;
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (address) updateData.address = address;
+    if (provinceId !== undefined) updateData.provinceId = provinceId;
+    if (districtId !== undefined) updateData.districtId = districtId;
+    if (wardId !== undefined) updateData.wardId = wardId;
+
+    const [updated] = await Store.update(updateData, { where: { id } });
     if (!updated) {
       return res.status(404).json({ message: "Store not found." });
     }

@@ -8,7 +8,6 @@ const ProductManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [storeFilter, setStoreFilter] = useState("");
   const [stores, setStores] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -16,10 +15,9 @@ const ProductManagement = () => {
     name: "",
     description: "",
     price: "",
-    quantity: "",
     category: "food",
     image: "",
-    detailImages: [],
+    images: [],
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [detailImagesPreview, setDetailImagesPreview] = useState([]);
@@ -43,7 +41,7 @@ const ProductManagement = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [productsRes, storesRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/products`, { headers }),
+        axios.get(`${API_BASE_URL}/admin/product-templates`, { headers }),
         axios.get(`${API_BASE_URL}/stores`, { headers }),
       ]);
 
@@ -64,23 +62,21 @@ const ProductManagement = () => {
         name: product.name,
         description: product.description || "",
         price: product.price.toString(),
-        quantity: product.quantity.toString(),
-        category: product.category,
+        category: product.category || "food",
         image: product.image || "",
-        detailImages: product.detailImages || [],
+        images: product.images || [],
       });
       setImagePreview(product.image);
-      setDetailImagesPreview(product.detailImages || []);
+      setDetailImagesPreview(product.images || []);
     } else {
       setSelectedProduct(null);
       setFormData({
         name: "",
         description: "",
         price: "",
-        quantity: "",
         category: "food",
         image: "",
-        detailImages: [],
+        images: [],
       });
       setImagePreview(null);
       setDetailImagesPreview([]);
@@ -95,10 +91,9 @@ const ProductManagement = () => {
       name: "",
       description: "",
       price: "",
-      quantity: "",
       category: "food",
       image: "",
-      detailImages: [],
+      images: [],
     });
     setImagePreview(null);
     setDetailImagesPreview([]);
@@ -154,7 +149,7 @@ const ProductManagement = () => {
     if (validUrls.length > 0) {
       setFormData((prev) => ({
         ...prev,
-        detailImages: [...prev.detailImages, ...validUrls].slice(0, 5),
+        images: [...prev.images, ...validUrls].slice(0, 5),
       }));
       setDetailImagesPreview((prev) => [...prev, ...validUrls].slice(0, 5));
     }
@@ -163,7 +158,7 @@ const ProductManagement = () => {
   const handleRemoveDetailImage = (index) => {
     setFormData((prev) => ({
       ...prev,
-      detailImages: prev.detailImages.filter((_, i) => i !== index),
+      images: prev.images.filter((_, i) => i !== index),
     }));
     setDetailImagesPreview((prev) => prev.filter((_, i) => i !== index));
   };
@@ -175,20 +170,23 @@ const ProductManagement = () => {
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
-        quantity: parseInt(formData.quantity),
       };
 
       if (selectedProduct) {
         await axios.put(
-          `${API_BASE_URL}/products/${selectedProduct.id}`,
+          `${API_BASE_URL}/admin/product-templates/${selectedProduct.id}`,
           productData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         alert("Cập nhật sản phẩm thành công!");
       } else {
-        await axios.post(`${API_BASE_URL}/products`, productData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await axios.post(
+          `${API_BASE_URL}/admin/product-templates`,
+          productData,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         alert("Thêm sản phẩm thành công!");
       }
 
@@ -207,9 +205,12 @@ const ProductManagement = () => {
 
     try {
       const token = getAccessToken();
-      await axios.delete(`${API_BASE_URL}/products/${productId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        `${API_BASE_URL}/admin/product-templates/${productId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       alert("Xóa sản phẩm thành công!");
       loadData();
     } catch (error) {
@@ -229,9 +230,7 @@ const ProductManagement = () => {
       product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCategory =
       !categoryFilter || product.category === categoryFilter;
-    const matchStore =
-      !storeFilter || product.storeId === parseInt(storeFilter);
-    return matchSearch && matchCategory && matchStore;
+    return matchSearch && matchCategory;
   });
 
   return (
@@ -267,18 +266,6 @@ const ProductManagement = () => {
             </option>
           ))}
         </select>
-        <select
-          value={storeFilter}
-          onChange={(e) => setStoreFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-        >
-          <option value="">Tất cả cửa hàng</option>
-          {stores.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>
       </div>
 
       {loading ? (
@@ -304,13 +291,7 @@ const ProductManagement = () => {
                     Giá
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Số lượng
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Danh mục
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Cửa hàng
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Hành động
@@ -321,7 +302,7 @@ const ProductManagement = () => {
                 {filteredProducts.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="6"
                       className="px-6 py-8 text-center text-gray-500"
                     >
                       Không tìm thấy sản phẩm
@@ -352,16 +333,9 @@ const ProductManagement = () => {
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {product.price?.toLocaleString("vi-VN")}đ
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {product.quantity}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {categories.find((c) => c.value === product.category)
                           ?.label || product.category}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {stores.find((s) => s.id === product.storeId)?.name ||
-                          `ID #${product.storeId}`}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2">
@@ -445,39 +419,21 @@ const ProductManagement = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Giá *
-                  </label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    required
-                    step="1000"
-                    min="0"
-                    placeholder="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Số lượng *
-                  </label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleInputChange}
-                    required
-                    min="0"
-                    placeholder="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Giá *
+                </label>
+                <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  required
+                  step="1000"
+                  min="0"
+                  placeholder="0"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                />
               </div>
 
               <div>

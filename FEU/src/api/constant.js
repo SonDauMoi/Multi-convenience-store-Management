@@ -9,8 +9,9 @@ export const API_URL = {
 };
 
 export const getHeaders = () => {
+  const token = getAccessToken();
   return {
-    Authorization: `Bearer ${getAccessToken()}`,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     "Content-Type": "application/json",
   };
 };

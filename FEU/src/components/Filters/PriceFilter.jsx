@@ -4,7 +4,7 @@ import "react-range-slider-input/dist/style.css";
 import "./PriceFilter.css";
 
 const PriceFilter = ({ onChange }) => {
-  const [range, setRange] = useState({ min: 0, max: 1000000 });
+  const [range, setRange] = useState({ min: 0, max: 2000000 });
   const handleChange = (values) => {
     const newRange = { min: values[0], max: values[1] };
     setRange(newRange);
@@ -17,7 +17,7 @@ const PriceFilter = ({ onChange }) => {
         <RangeSlider
           className={"custom-range-slider"}
           min={0}
-          max={1000000}
+          max={2000000}
           defaultValue={[range.min, range.max]}
           onInput={handleChange}
         />
@@ -43,7 +43,7 @@ const PriceFilter = ({ onChange }) => {
             value={range?.max}
             className="outline-none px-2 text-gray-700 text-sm flex-1"
             min={0}
-            max="1000000"
+            max="2000000"
             disabled
             placeholder="max"
           />

@@ -8,12 +8,20 @@ import { loginAPI } from "../../api/authencation.js";
 import { saveTokens, getUserInfo } from "../../utils/jwt-helper";
 import { Controller, useForm } from "react-hook-form";
 import PasswordInput from "../../components/PasswordInput.jsx";
+import Modal from "../../components/Modal";
 
 const Login = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const verifiedSuccess = searchParams.get("verified") === "success";
   const [showToast, setShowToast] = useState(verifiedSuccess);
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
 
   useEffect(() => {
     const hasVerified = sessionStorage.getItem("verifiedSuccess") === "true";
@@ -74,19 +82,29 @@ const Login = () => {
           error.response?.status === 403 &&
           error.response?.data?.needsVerification
         ) {
-          const confirmResend = window.confirm(
-            "Tài khoản chưa được xác thực. Bạn có muốn chuyển đến trang xác thực không?"
-          );
-          if (confirmResend) {
-            navigate("/v1/register"); // Hoặc tạo route riêng cho verify
-          }
+          setModalState({
+            isOpen: true,
+            type: "warning",
+            title: "Xác thực email",
+            message:
+              "Tài khoản chưa được xác thực. Bạn có muốn chuyển đến trang xác thực không?",
+            onConfirm: () => {
+              navigate("/v1/register");
+            },
+          });
           return;
         }
 
         const errorMessage =
           error.response?.data?.message ||
           "Tên đăng nhập hoặc mật khẩu không đúng";
-        alert(errorMessage);
+        setModalState({
+          isOpen: true,
+          type: "error",
+          title: "Lỗi đăng nhập",
+          message: errorMessage,
+          onConfirm: null,
+        });
       } finally {
         dispatch(setLoading(false));
       }
@@ -100,6 +118,11 @@ const Login = () => {
 
   return (
     <div className="bg-widget flex items-center justify-center w-full py-10 px-4 lg:p-[110px]">
+      <Modal
+        {...modalState}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+      />
+
       {showToast && (
         <div className="fixed top-2 right-2 z-50 flex items-start gap-3 bg-green-50 border-l-4 border-green-600 text-green-800 px-4 py-3 rounded-md shadow-md w-[320px] animate-fade-in">
           <svg

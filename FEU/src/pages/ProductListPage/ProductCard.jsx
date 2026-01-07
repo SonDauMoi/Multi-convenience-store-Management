@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { formatDisplayPrice } from "../../utils/price-format";
 
 const ProductCard = ({
+  id,
   name,
   price,
   discount,
@@ -12,9 +13,12 @@ const ProductCard = ({
   newArrival,
   slug,
 }) => {
+  // Use id for navigation, fall back to slug if provided
+  const productIdentifier = id || slug;
+
   return (
     <div className="flex flex-col p-3 sm:p-4 h-90 md:h-110 lg:h-88 xl:h-90 border border-gray-300 rounded hover:border-black transition-all bg-white group">
-      <Link to={`/product/${slug}`}>
+      <Link to={`/product/${productIdentifier}`}>
         <div className="relative overflow-hidden rounded mb-3">
           {newArrival && (
             <div className="absolute top-2 right-2 bg-black text-white text-xs font-semibold px-2.5 py-1 rounded z-1">

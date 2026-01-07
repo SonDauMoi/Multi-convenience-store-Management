@@ -105,11 +105,22 @@ const BannerManagement = () => {
     try {
       let imageUrl = formData.image_url;
 
+      // Validate: must have image when creating new banner
+      if (!editingBanner && !imageFile && !imageUrl) {
+        alert("Vui lòng chọn hình ảnh cho banner");
+        return;
+      }
+
       if (imageFile) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", imageFile);
-        const uploadRes = await fileUploadAPI(formDataUpload);
+        // Upload file directly (fileUploadAPI handles FormData internally)
+        const uploadRes = await fileUploadAPI(imageFile);
         imageUrl = uploadRes.imageUrl;
+      }
+
+      // Final validation
+      if (!imageUrl) {
+        alert("Vui lòng chọn hình ảnh cho banner");
+        return;
       }
 
       const bannerData = {
@@ -206,7 +217,10 @@ const BannerManagement = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {banners.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                    <td
+                      colSpan="7"
+                      className="px-6 py-8 text-center text-gray-500"
+                    >
                       Không tìm thấy banner
                     </td>
                   </tr>
@@ -227,7 +241,8 @@ const BannerManagement = () => {
                         {banner.title}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {positions.find((p) => p.value === banner.position)?.label || banner.position}
+                        {positions.find((p) => p.value === banner.position)
+                          ?.label || banner.position}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {banner.order_index}
@@ -279,8 +294,18 @@ const BannerManagement = () => {
                 onClick={handleCloseModal}
                 className="text-gray-500 hover:text-gray-700"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>

@@ -4,10 +4,14 @@ import {
   addProductToStore,
   updateStoreProductQuantity,
   removeProductFromStore,
+  getStoresWithProduct,
 } from "../controllers/storeProduct.controller.js";
 import { authenticateToken, checkManager } from "../middleware.js";
 
 const router = express.Router();
+
+// Public: Lấy danh sách cửa hàng có sản phẩm cụ thể
+router.get("/availability/:productTemplateId", getStoresWithProduct);
 
 // Lấy danh sách sản phẩm của cửa hàng
 router.get("/", authenticateToken, checkManager, getStoreProducts);

@@ -68,7 +68,7 @@ export const Login = async (req, res) => {
         storeId: user.storeId,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "24h" }
     );
 
     // Tạo refresh token (7 ngày)
@@ -259,7 +259,7 @@ export const refreshToken = async (req, res) => {
         storeId: user.storeId,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "24h" }
     );
 
     // Tạo refresh token mới

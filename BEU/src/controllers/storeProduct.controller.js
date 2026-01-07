@@ -1,4 +1,5 @@
 import { ProductTemplate, StoreProduct, Store } from "../models/index.js";
+import { Op } from "sequelize";
 
 /**
  * Lấy danh sách sản phẩm của cửa hàng (Manager)
@@ -228,6 +229,59 @@ export const removeProductFromStore = async (req, res) => {
     });
   } catch (error) {
     console.error("Error removing product:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+    });
+  }
+};
+
+/**
+ * Lấy danh sách cửa hàng có sản phẩm template cụ thể (Public)
+ * GET /store-products/availability/:productTemplateId
+ */
+export const getStoresWithProduct = async (req, res) => {
+  try {
+    const { productTemplateId } = req.params;
+
+    const storeProducts = await StoreProduct.findAll({
+      where: {
+        product_template_id: productTemplateId,
+        quantity: { [Op.gt]: 0 }, // Chỉ lấy store còn hàng
+      },
+      include: [
+        {
+          model: Store,
+          as: "store",
+          attributes: ["id", "name", "address", "provinceId", "districtId"],
+        },
+        {
+          model: ProductTemplate,
+          as: "productTemplate",
+          attributes: ["id", "name", "price", "image"],
+        },
+      ],
+    });
+
+    const stores = storeProducts.map((sp) => ({
+      storeProductId: sp.id,
+      storeId: sp.store_id,
+      storeName: sp.store?.name,
+      storeAddress: sp.store?.address,
+      storeProvinceId: sp.store?.provinceId,
+      storeDistrictId: sp.store?.districtId,
+      quantity: sp.quantity,
+      productName: sp.productTemplate?.name,
+      productPrice: sp.productTemplate?.price,
+    }));
+
+    res.json({
+      success: true,
+      stores,
+      totalStores: stores.length,
+    });
+  } catch (error) {
+    console.error("Error getting stores with product:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi server",

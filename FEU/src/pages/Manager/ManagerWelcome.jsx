@@ -1,17 +1,32 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { getUserInfo } from "../../utils/jwt-helper";
 import { logoutAPI } from "../../api/authencation";
+import Modal from "../../components/Modal";
 
 const ManagerWelcome = () => {
   const navigate = useNavigate();
   const userInfo = getUserInfo();
+  const [modalState, setModalState] = React.useState({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
 
   const handleLogout = async () => {
-    if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-      await logoutAPI();
-      navigate("/v1/login");
-    }
+    setModalState({
+      isOpen: true,
+      type: "warning",
+      title: "Xác nhận đăng xuất",
+      message: "Bạn có chắc chắn muốn đăng xuất?",
+      onConfirm: async () => {
+        await logoutAPI();
+        navigate("/v1/login");
+      },
+    });
   };
 
   const handleGoToPanel = () => {
@@ -20,6 +35,11 @@ const ManagerWelcome = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <Modal
+        {...modalState}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+      />
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

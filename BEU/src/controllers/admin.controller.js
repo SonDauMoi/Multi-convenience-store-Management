@@ -1,5 +1,4 @@
 import {
-  Product,
   Store,
   ProductTemplate,
   StoreProduct,
@@ -282,7 +281,8 @@ export const getStoreInventory = async (req, res) => {
 };
 
 /**
- * Lấy tất cả products của admin (chưa gán store hoặc đã gán)
+ * Lấy tất cả ProductTemplates (Admin)
+ * DEPRECATED - Use getAllProductTemplates instead
  * GET /inventory/admin/all-products
  */
 export const getAllProductsAdmin = async (req, res) => {
@@ -297,20 +297,12 @@ export const getAllProductsAdmin = async (req, res) => {
       where.category = category;
     }
 
-    const products = await Product.findAll({
+    const templates = await ProductTemplate.findAll({
       where,
       order: [["id", "DESC"]],
-      include: [
-        {
-          model: Store,
-          as: "store",
-          attributes: ["id", "name"],
-          required: false, // Include products without store
-        },
-      ],
     });
 
-    res.status(200).json(products);
+    res.status(200).json(templates);
   } catch (error) {
     console.error("Get all products error:", error);
     res.status(500).json({

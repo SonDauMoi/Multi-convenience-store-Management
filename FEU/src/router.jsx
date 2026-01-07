@@ -11,7 +11,7 @@ import OAuth2loginCallback from "./pages/OAuth2loginCallback";
 import Cart from "./pages/Cart/Cart";
 import Account from "./pages/Account/Account";
 import ProtectedRoute from "./components/ProtectdRouter/ProtectedRouter.jsx";
-import Checkout from "./pages/Payment/CheckoutPayment.jsx";
+import Checkout from "./pages/Checkout/Checkout.jsx";
 import OrderConfirmed from "./pages/OrderComfirmed/OrderComfirmed.jsx";
 import Profile from "./pages/Account/Profile.jsx";
 import Orders from "./pages/Account/Orders.jsx";
@@ -40,11 +40,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "food",
-        element: <ProductListPage category="food" />,
+        element: <ProductListPage category="grocery" />,
+      },
+      {
+        path: "snack",
+        element: <ProductListPage category="snack" />,
       },
       {
         path: "drink",
-        element: <ProductListPage category="drink" />,
+        element: <ProductListPage category="beverage" />,
       },
       {
         path: "household",
@@ -52,7 +56,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "personal",
-        element: <ProductListPage category="personal" />,
+        element: <ProductListPage category="personal_care" />,
       },
       {
         path: "all-products",

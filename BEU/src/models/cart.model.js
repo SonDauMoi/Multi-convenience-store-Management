@@ -11,7 +11,9 @@ export default (sequelize) => {
         primaryKey: true,
       },
       userId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      storeProductId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false }, // Đổi từ productId
+      storeId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false }, // Thêm mới
+      storeName: { type: DataTypes.STRING, allowNull: true }, // Thêm mới - tên cửa hàng
       name: { type: DataTypes.STRING, allowNull: false },
       quantity: {
         type: DataTypes.INTEGER.UNSIGNED,

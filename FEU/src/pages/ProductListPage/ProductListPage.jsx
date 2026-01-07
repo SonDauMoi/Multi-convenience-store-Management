@@ -13,7 +13,7 @@ const ProductListPage = ({ category }) => {
   const dispatch = useDispatch();
 
   const [products, setProducts] = useState([]);
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 1000000 });
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 2000000 });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [size] = useState(12);
@@ -27,7 +27,9 @@ const ProductListPage = ({ category }) => {
     personal: "Cá nhân",
   };
 
-  const categoryTitle = category ? categoryTitles[category] : "Tất cả sản phẩm";
+  const categoryTitle = category
+    ? categoryTitles[category] || "Tất cả sản phẩm"
+    : "Tất cả sản phẩm";
 
   // Toggle filter mobile
   const handleFilterToggle = useCallback(
@@ -36,7 +38,7 @@ const ProductListPage = ({ category }) => {
   );
   const handleCloseFilter = useCallback(() => setIsFilterOpen(false), []);
   const handleResetFilters = useCallback(() => {
-    setPriceRange({ min: 0, max: 1000000 });
+    setPriceRange({ min: 0, max: 2000000 });
   }, []);
 
   const handlePageChange = (event, value) => {
@@ -132,7 +134,12 @@ const ProductListPage = ({ category }) => {
     return (
       <div className={gridClass}>
         {filteredProducts?.map((item, index) => (
-          <ProductCard key={item.id || index} {...item} title={item?.name} />
+          <ProductCard
+            key={item.id || index}
+            id={item.id}
+            {...item}
+            title={item?.name}
+          />
         ))}
       </div>
     );
