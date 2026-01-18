@@ -21,7 +21,7 @@ export const getBanners = async (req, res) => {
     res.status(200).json(banners);
   } catch (error) {
     console.error("Get banners error:", error);
-    res.status(500).json({ message: "Lỗi khi lấy banners" });
+    res.status(500).json({ message: "Failed to fetch banners" });
   }
 };
 
@@ -38,7 +38,7 @@ export const getAllBannersAdmin = async (req, res) => {
     res.status(200).json(banners);
   } catch (error) {
     console.error("Get all banners error:", error);
-    res.status(500).json({ message: "Lỗi khi lấy banners" });
+    res.status(500).json({ message: "Failed to fetch banners" });
   }
 };
 
@@ -48,10 +48,8 @@ export const createBanner = async (req, res) => {
     const { title, image_url, link_url, position, order_index, is_active } =
       req.body;
 
-    if (!title || !image_url) {
-      return res
-        .status(400)
-        .json({ message: "Title và image_url là bắt buộc" });
+    if (!title) {
+      return res.status(400).json({ message: "title is required" });
     }
 
     const banner = await Banner.create({
@@ -66,7 +64,7 @@ export const createBanner = async (req, res) => {
     res.status(201).json(banner);
   } catch (error) {
     console.error("Create banner error:", error);
-    res.status(500).json({ message: "Lỗi khi tạo banner" });
+    res.status(500).json({ message: "Failed to create banner" });
   }
 };
 
@@ -79,22 +77,26 @@ export const updateBanner = async (req, res) => {
 
     const banner = await Banner.findByPk(id);
     if (!banner) {
-      return res.status(404).json({ message: "Không tìm thấy banner" });
+      return res.status(404).json({ message: "Banner not found" });
     }
 
-    await banner.update({
+    // Chỉ update image_url nếu khác undefined và khác rỗng
+    const updateData = {
       title: title || banner.title,
-      image_url: image_url || banner.image_url,
       link_url: link_url !== undefined ? link_url : banner.link_url,
       position: position || banner.position,
       order_index: order_index !== undefined ? order_index : banner.order_index,
       is_active: is_active !== undefined ? is_active : banner.is_active,
-    });
+    };
+    if (image_url !== undefined && image_url !== "") {
+      updateData.image_url = image_url;
+    }
+    await banner.update(updateData);
 
     res.status(200).json(banner);
   } catch (error) {
     console.error("Update banner error:", error);
-    res.status(500).json({ message: "Lỗi khi cập nhật banner" });
+    res.status(500).json({ message: "Failed to update banner" });
   }
 };
 
@@ -105,13 +107,13 @@ export const deleteBanner = async (req, res) => {
 
     const banner = await Banner.findByPk(id);
     if (!banner) {
-      return res.status(404).json({ message: "Không tìm thấy banner" });
+      return res.status(404).json({ message: "Banner not found" });
     }
 
     await banner.destroy();
-    res.status(200).json({ message: "Xóa banner thành công" });
+    res.status(200).json({ message: "Banner deleted successfully" });
   } catch (error) {
     console.error("Delete banner error:", error);
-    res.status(500).json({ message: "Lỗi khi xóa banner" });
+    res.status(500).json({ message: "Failed to delete banner" });
   }
 };

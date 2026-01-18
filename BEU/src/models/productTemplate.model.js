@@ -19,11 +19,11 @@ export default (sequelize) => {
         allowNull: true,
       },
       image: {
-        type: DataTypes.TEXT,
+        type: DataTypes.TEXT, // Đảm bảo lưu được base64 dài
         allowNull: true,
       },
       images: {
-        type: DataTypes.JSON,
+        type: DataTypes.JSON, // Mảng các ảnh chi tiết
         allowNull: true,
       },
       price: {
@@ -31,16 +31,14 @@ export default (sequelize) => {
         allowNull: false,
       },
       category: {
-        type: DataTypes.ENUM(
-          "grocery",
-          "snack",
-          "beverage",
-          "household",
-          "personal_care",
-          "other"
-        ),
-        allowNull: false,
+        type: DataTypes.STRING, // Chuyển từ ENUM sang STRING để linh hoạt
+        allowNull: true,
         defaultValue: "other",
+      },
+      categoryId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "category_id",
       },
       created_by: {
         type: DataTypes.INTEGER,

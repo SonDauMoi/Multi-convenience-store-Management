@@ -26,7 +26,7 @@ const ShopPages = () => {
         }));
         setShops(normalized);
       } catch (e) {
-        setError("Không thể tải danh sách cửa hàng");
+        setError("Unable to load store list");
         setShops([]);
       } finally {
         setLoading(false);
@@ -39,12 +39,10 @@ const ShopPages = () => {
     <>
       <div className=" py-10 px-5 md:px-12 lg:px-15 my-10">
         <h2 className="text-3xl font-bold text-gray-800 text-center mb-10">
-          Cửa hàng của chúng tôi
+          Our Stores
         </h2>
         {loading && (
-          <div className="text-center text-gray-600">
-            Đang tải danh sách cửa hàng...
-          </div>
+          <div className="text-center text-gray-600">Loading store list...</div>
         )}
         {!!error && !loading && (
           <div className="text-center text-red-600 mb-4">{error}</div>
@@ -78,7 +76,7 @@ const ShopPages = () => {
           ))}
           {!loading && shops.length === 0 && !error && (
             <div className="text-center text-gray-600">
-              Chưa có cửa hàng nào.
+              No stores available yet.
             </div>
           )}
         </div>

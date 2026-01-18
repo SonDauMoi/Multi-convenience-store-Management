@@ -11,12 +11,23 @@ import { sequelize } from "../config/database.js";
 import { refundPayPalPayment } from "./payment.controller.js";
 
 // Tạo đơn hàng mới (Người dùng)
+// Mô tả luồng chính:
+// 1) Kiểm tra dữ liệu đầu vào (storeId, items, payment_method)
+// 2) Tính tổng số lượng / giá tiền
+// 3) Kiểm tra tồn kho (StoreProduct) cho từng item — nếu thiếu -> rollback
+// 4) Giảm stock (atomic via transaction) trước khi tạo Order/OrderDetail
+// 5) Tạo bản ghi Order và OrderDetail, xóa Cart của user
+// Lưu ý quan trọng:
+// - Việc giảm stock trước khi tạo Order đảm bảo tránh oversell trong môi trường đồng thời.
+// - Transaction bao phủ các thao tác thay đổi stock và tạo order để đảm bảo rollback an toàn khi có lỗi.
 export const createOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { storeId, items, payment_method, shipping_fee, shipping_address } =
       req.body;
     const userId = req.user.userId; // JWT payload has userId not id
+
+    const storeIdNumber = Number(storeId);
 
     console.log("📦 Create order request:", {
       userId,
@@ -28,10 +39,10 @@ export const createOrder = async (req, res) => {
     });
     console.log("📦 Items:", items);
 
-    if (!storeId || !items?.length || !payment_method) {
+    if (!storeIdNumber || !items?.length || !payment_method) {
       await transaction.rollback();
       return res.status(400).json({
-        message: "Cung cấp: storeId, items[], payment_method",
+        message: "Required: storeId, items[], payment_method",
       });
     }
 
@@ -62,6 +73,17 @@ export const createOrder = async (req, res) => {
         transaction,
       });
 
+      const itemStoreId = Number(
+        storeProduct?.store_id ?? storeProduct?.storeId
+      );
+      if (storeProduct && itemStoreId && itemStoreId !== storeIdNumber) {
+        await transaction.rollback();
+        return res.status(400).json({
+          message:
+            "You can't place items from multiple stores in a single order. Please check your cart.",
+        });
+      }
+
       if (!storeProduct || storeProduct.quantity < item.quantity) {
         await transaction.rollback();
         return res.status(400).json({
@@ -69,12 +91,13 @@ export const createOrder = async (req, res) => {
             storeProduct?.productTemplate?.name ||
             item.name ||
             item.storeProductId
-          }: không đủ số lượng hoặc không có`,
+          }: not available or insufficient quantity`,
         });
       }
     }
 
     // Giảm stock trong StoreProduct
+    // NOTE: decrement trước khi ghi Order để giữ nhất quán tồn kho trong cạnh tranh cao.
     for (const item of items) {
       await StoreProduct.decrement("quantity", {
         by: item.quantity,
@@ -84,10 +107,11 @@ export const createOrder = async (req, res) => {
     }
 
     // Tạo đơn hàng
+    // Order lưu trạng thái ban đầu là 'pending'. Việc thanh toán/confirm có thể cập nhật sau.
     const order = await Order.create(
       {
-        studentId: userId,
-        storeId,
+        userId,
+        storeId: storeIdNumber,
         total_quantity,
         total_price,
         discount,
@@ -120,12 +144,12 @@ export const createOrder = async (req, res) => {
 
     await transaction.commit();
     console.log("✅ Order created successfully:", order.id);
-    res.status(201).json({ message: "Đặt hàng thành công", order });
+    res.status(201).json({ message: "Order placed successfully", order });
   } catch (error) {
     console.error("❌ Create order error:", error);
     console.error("❌ Error stack:", error.stack);
     await transaction.rollback();
-    res.status(500).json({ message: "Lỗi server: " + error.message });
+    res.status(500).json({ message: "Server error: " + error.message });
   }
 };
 
@@ -133,8 +157,10 @@ export const createOrder = async (req, res) => {
 export const getUserOrders = async (req, res) => {
   try {
     const userId = req.user.userId; // JWT payload has userId not id
+    console.log("📦 getUserOrders called for userId:", userId);
+
     const orders = await Order.findAll({
-      where: { studentId: userId },
+      where: { userId },
       include: [
         {
           model: OrderDetail,
@@ -152,39 +178,51 @@ export const getUserOrders = async (req, res) => {
       order: [["order_time", "DESC"]],
     });
 
-    // Format dữ liệu cho frontend
-    const formattedOrders = orders.map((order) => ({
-      id: order.id,
-      orderDisplayCode: `ORD${String(order.id).padStart(6, "0")}`,
-      orderDate: order.order_time,
-      orderStatus: order.status ? order.status.toUpperCase() : "PENDING",
-      totalAmount: order.final_price,
-      shippingFee: order.shipping_fee || 0,
-      paymentMethod: order.payment_method,
-      address: {
-        name: order.receiver_name,
-        phoneNumber: order.receiver_phone,
-        street: order.delivery_address,
-        provinceId: order.province_id,
-        districtId: order.district_id,
-        wardId: order.ward_id,
-      },
-      orderItemList: order.orderDetails.map((item) => ({
-        id: item.id,
-        product: {
-          name: item.name,
-          price: item.price,
-          productResources: [],
-        },
-        quantity: item.quantity,
-        totalPrice: item.total_price,
-      })),
-    }));
+    console.log("📦 Found orders:", orders.length);
 
+    // Format dữ liệu cho frontend
+    const formattedOrders = orders.map((order) => {
+      console.log(
+        "📦 Order:",
+        order.id,
+        "has orderDetails:",
+        order.orderDetails?.length
+      );
+
+      return {
+        id: order.id,
+        orderDisplayCode: `ORD${String(order.id).padStart(6, "0")}`,
+        orderDate: order.order_time,
+        orderStatus: order.status ? order.status.toUpperCase() : "PENDING",
+        totalAmount: order.final_price,
+        shippingFee: order.shipping_fee || 0,
+        paymentMethod: order.payment_method,
+        address: {
+          name: order.receiver_name,
+          phoneNumber: order.receiver_phone,
+          street: order.delivery_address,
+          provinceId: order.province_id,
+          districtId: order.district_id,
+          wardId: order.ward_id,
+        },
+        orderItemList: (order.orderDetails || []).map((item) => ({
+          id: item.id,
+          product: {
+            name: item.name,
+            price: item.price,
+            productResources: [],
+          },
+          quantity: item.quantity,
+          totalPrice: item.total_price,
+        })),
+      };
+    });
+
+    console.log("✅ Returning formatted orders:", formattedOrders.length);
     res.status(200).json(formattedOrders);
   } catch (error) {
     console.error("getUserOrders error:", error);
-    res.status(500).json({ message: "Lỗi server", error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -193,7 +231,7 @@ export const getManagerOrders = async (req, res) => {
   try {
     const managerId = req.user.userId; // JWT payload has userId not id
     const orders = await Order.findAll({
-      where: { staffId: managerId, storeId: req.user.storeId },
+      where: { managerId, storeId: req.user.storeId },
       include: [
         {
           model: OrderDetail,
@@ -206,7 +244,7 @@ export const getManagerOrders = async (req, res) => {
     res.status(200).json(orders);
   } catch (error) {
     console.error("getManagerOrders error:", error);
-    res.status(500).json({ message: "Lỗi server", error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -221,11 +259,11 @@ export const getOrderDetail = async (req, res) => {
         { model: OrderDetail, as: "orderDetails" },
       ],
     });
-    if (!order)
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+    if (!order) return res.status(404).json({ message: "Order not found" });
     res.status(200).json(order);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("getOrderDetail error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -242,7 +280,8 @@ export const getPendingOrders = async (req, res) => {
     });
     res.status(200).json(orders);
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("getPendingOrders error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -250,28 +289,28 @@ export const getPendingOrders = async (req, res) => {
 export const acceptOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const managerId = req.user.id;
+    const managerId = req.user.userId;
 
     const order = await Order.findByPk(orderId);
     if (!order) {
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+      return res.status(404).json({ message: "Order not found" });
     }
     if (order.status !== "pending") {
       return res
         .status(400)
-        .json({ message: "Đơn hàng không ở trạng thái pending" });
+        .json({ message: "Order is not in pending status" });
     }
     if (order.storeId !== req.user.storeId) {
-      return res.status(403).json({ message: "Không có quyền" });
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    order.staffId = managerId;
+    order.managerId = managerId;
     order.status = "processing";
     await order.save();
 
-    res.status(200).json({ message: "Chấp nhận đơn hàng", order });
+    res.status(200).json({ message: "Order accepted", order });
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -287,17 +326,17 @@ export const declineOrder = async (req, res) => {
 
     if (!order) {
       await transaction.rollback();
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+      return res.status(404).json({ message: "Order not found" });
     }
     if (order.status !== "pending") {
       await transaction.rollback();
       return res
         .status(400)
-        .json({ message: "Chỉ có thể từ chối đơn pending" });
+        .json({ message: "Only pending orders can be declined" });
     }
     if (order.storeId !== req.user.storeId) {
       await transaction.rollback();
-      return res.status(403).json({ message: "Không có quyền" });
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     // Hoàn lại stock
@@ -315,10 +354,10 @@ export const declineOrder = async (req, res) => {
     await transaction.commit();
     res
       .status(200)
-      .json({ message: "Từ chối đơn hàng, stock đã được hoàn lại", order });
+      .json({ message: "Order declined; stock has been restored", order });
   } catch (error) {
     await transaction.rollback();
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -329,28 +368,35 @@ export const completeOrder = async (req, res) => {
     const order = await Order.findByPk(orderId);
 
     if (!order) {
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+      return res.status(404).json({ message: "Order not found" });
     }
     if (order.status !== "shipping") {
       return res
         .status(400)
-        .json({ message: "Đơn hàng phải ở trạng thái shipping" });
+        .json({ message: "Order must be in shipping status" });
     }
     if (order.storeId !== req.user.storeId) {
-      return res.status(403).json({ message: "Không có quyền" });
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     order.status = "delivered";
     await order.save();
 
     console.log("✅ Order completed:", orderId);
-    res.status(200).json({ message: "Hoàn thành đơn hàng", order });
+    res.status(200).json({ message: "Order completed", order });
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 // Hủy đơn hàng (User)
+// Luồng hủy:
+// - Chỉ chủ sở hữu order có thể hủy.
+// - Chỉ cho phép hủy khi status nằm trong `pending` hoặc `processing`.
+// - Tự động hoàn kho (restore quantity) cho các OrderDetail.
+// - Nếu thanh toán bằng PayPal sẽ cố gắng gọi API refund; nếu thiếu capture_id hoặc refund thất bại
+//   sẽ ghi chú vào order và yêu cầu admin can thiệp.
+// - Refund policy: full refund nếu order đang 'pending', 50% nếu đang 'processing'.
 export const cancelOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -366,15 +412,15 @@ export const cancelOrder = async (req, res) => {
 
     if (!order) {
       await transaction.rollback();
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+      return res.status(404).json({ message: "Order not found" });
     }
 
     // Kiểm tra quyền sở hữu
-    if (order.studentId !== userId) {
+    if (order.userId !== userId) {
       await transaction.rollback();
       return res
         .status(403)
-        .json({ message: "Không có quyền hủy đơn hàng này" });
+        .json({ message: "You are not allowed to cancel this order" });
     }
 
     // Chỉ cho phép hủy đơn ở trạng thái pending hoặc processing
@@ -382,15 +428,21 @@ export const cancelOrder = async (req, res) => {
     if (!allowedStatuses.includes(order.status)) {
       await transaction.rollback();
       return res.status(400).json({
-        message: "Chỉ có thể hủy đơn hàng đang chờ xử lý hoặc đang chuẩn bị",
+        message: "You can only cancel orders that are pending or processing",
       });
     }
 
     // Kiểm tra phương thức thanh toán
+    // Nếu PayPal: cố gắng refund tự động thông qua `refundPayPalPayment`.
+    // - Nếu refund thành công: ghi `refund_status = completed` và lưu refund_id
+    // - Nếu không có capture_id: đánh dấu `pending` để admin xử lý thủ công
+    // - Nếu refund thất bại: ghi `failed` và giữ order ở trạng thái cancelled nhưng yêu cầu admin xử lý
     const paymentMethod = order.payment_method?.toLowerCase();
     const isPayPalPayment = paymentMethod === "paypal";
 
     // Xác định tỷ lệ hoàn tiền dựa trên trạng thái
+    // - pending => 100% refund
+    // - processing => 50% refund (giả định phí/chi phí đã phát sinh)
     const refundPercentage = order.status === "pending" ? 100 : 50;
     const refundAmount = (order.final_price * refundPercentage) / 100;
 
@@ -419,23 +471,24 @@ export const cancelOrder = async (req, res) => {
         order.refund_amount = parseFloat(refundResult.amount);
         order.refund_time = new Date();
         order.refund_id = refundResult.refundId;
-        order.notes = `Đã hoàn ${refundPercentage}% số tiền (${refundAmount.toLocaleString()} VND) - PayPal Refund ID: ${
+        order.notes = `Refunded ${refundPercentage}% (${refundAmount.toLocaleString()} VND) - PayPal Refund ID: ${
           refundResult.refundId
         }`;
         console.log("✅ PayPal refund successful:", refundResult.refundId);
       } else {
         order.refund_status = "failed";
-        order.notes = `[LỖI HOÀN TIỀN] PayPal refund failed: ${refundResult.error}. Admin cần xử lý thủ công.`;
+        order.notes = `[REFUND ERROR] PayPal refund failed: ${refundResult.error}. Admin action required.`;
         console.error("❌ PayPal refund failed:", refundResult.error);
       }
     } else if (isPayPalPayment && !order.paypal_capture_id) {
       // Không có capture ID, yêu cầu admin xử lý thủ công
       order.refund_status = "pending";
-      order.notes = `[CẦN HOÀN TIỀN] Đơn hàng đã thanh toán PayPal - Số tiền cần hoàn: ${refundAmount.toLocaleString()} VND (${refundPercentage}%)`;
+      order.notes = `[REFUND REQUIRED] PayPal paid order - Amount to refund: ${refundAmount.toLocaleString()} VND (${refundPercentage}%)`;
       console.warn("⚠️ Missing PayPal capture_id, manual refund required");
     }
 
     // Hoàn trả lại số lượng sản phẩm vào kho
+    // Thao tác này dùng transaction để đảm bảo giá trị kho được phục hồi đồng bộ nếu rollback.
     if (order.orderDetails && order.orderDetails.length > 0) {
       for (const detail of order.orderDetails) {
         if (detail.storeProductId) {
@@ -454,22 +507,23 @@ export const cancelOrder = async (req, res) => {
     // Cập nhật trạng thái đơn hàng
     order.status = "cancelled";
     order.cancel_time = new Date();
-    order.cancel_reason = req.body.reason || "Khách hàng yêu cầu hủy";
+    order.cancel_reason = req.body.reason || "Customer requested cancellation";
     await order.save({ transaction });
 
     await transaction.commit();
     console.log("✅ Order cancelled successfully:", orderId);
 
     // Response với thông báo phù hợp
-    let responseMessage = "Đơn hàng đã được hủy thành công";
+    let responseMessage = "Order cancelled successfully";
 
     if (isPayPalPayment) {
       if (refundResult?.success) {
-        responseMessage = `Đơn hàng đã được hủy và hoàn ${refundPercentage}% số tiền (${refundAmount.toLocaleString()} VND). Tiền sẽ về tài khoản PayPal trong 5-7 ngày làm việc.`;
+        responseMessage = `Order cancelled and refunded ${refundPercentage}% (${refundAmount.toLocaleString()} VND). Funds will return to your PayPal account within 5-7 business days.`;
       } else if (order.refund_status === "failed") {
-        responseMessage = `Đơn hàng đã được hủy nhưng gặp lỗi khi hoàn tiền. Vui lòng liên hệ admin để xử lý.`;
+        responseMessage =
+          "Order cancelled, but there was an error processing the refund. Please contact an admin.";
       } else if (order.refund_status === "pending") {
-        responseMessage = `Đơn hàng đã được hủy. Admin sẽ xử lý hoàn ${refundPercentage}% số tiền (${refundAmount.toLocaleString()} VND) trong thời gian sớm nhất.`;
+        responseMessage = `Order cancelled. An admin will process a ${refundPercentage}% refund (${refundAmount.toLocaleString()} VND) as soon as possible.`;
       }
     }
 
@@ -482,7 +536,7 @@ export const cancelOrder = async (req, res) => {
             refundAmount,
             refundStatus: order.refund_status,
             refundId: order.refund_id,
-            estimatedDays: refundResult?.success ? "5-7 ngày" : null,
+            estimatedDays: refundResult?.success ? "5-7 days" : null,
           }
         : null,
     });
@@ -490,7 +544,7 @@ export const cancelOrder = async (req, res) => {
     await transaction.rollback();
     console.error("❌ Cancel order error:", error);
     res.status(500).json({
-      message: "Lỗi server: " + error.message,
+      message: "Server error: " + error.message,
     });
   }
 };
@@ -504,17 +558,17 @@ export const startShipping = async (req, res) => {
     const order = await Order.findByPk(orderId);
 
     if (!order) {
-      return res.status(404).json({ message: "Đơn hàng không tồn tại" });
+      return res.status(404).json({ message: "Order not found" });
     }
 
     if (order.status !== "processing") {
       return res.status(400).json({
-        message: "Chỉ có thể giao đơn đang xử lý",
+        message: "Only orders in processing status can be shipped",
       });
     }
 
     if (order.storeId !== req.user.storeId) {
-      return res.status(403).json({ message: "Không có quyền" });
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     // Cập nhật trạng thái và thông tin shipper
@@ -526,13 +580,13 @@ export const startShipping = async (req, res) => {
     console.log("📦 Order started shipping:", orderId);
 
     res.status(200).json({
-      message: "Đơn hàng đã chuyển sang đang giao",
+      message: "Order moved to shipping",
       order,
     });
   } catch (error) {
     console.error("❌ Start shipping error:", error);
     res.status(500).json({
-      message: "Lỗi server: " + error.message,
+      message: "Server error: " + error.message,
     });
   }
 };

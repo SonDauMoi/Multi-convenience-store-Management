@@ -18,6 +18,7 @@ const PaymentPage = ({ userId, addressId }) => {
   const [clientSecret, setClientSecret] = useState(null);
   const [orderId, setOrderId] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("paypal"); // 'stripe' or 'paypal'
+  const [initError, setInitError] = useState(null);
 
   // Tính tổng tiền
   const totalAmount = cartItems.reduce(
@@ -30,12 +31,14 @@ const PaymentPage = ({ userId, addressId }) => {
     if (paymentMethod === "stripe") {
       const initPayment = async () => {
         try {
+          setInitError(null);
           const orderRequest = createOrderRequest(cartItems, userId, addressId);
           const res = await placeOrderAPI(orderRequest);
           setClientSecret(res.credentials.client_secret);
           setOrderId(res.orderId);
         } catch (error) {
           console.error(" Lỗi khi tạo đơn hàng:", error);
+          setInitError(error?.message || "Không thể tạo đơn hàng");
         }
       };
 
@@ -88,7 +91,9 @@ const PaymentPage = ({ userId, addressId }) => {
           />
         ) : (
           <div>
-            {clientSecret ? (
+            {initError ? (
+              <p className="text-red-600">{initError}</p>
+            ) : clientSecret ? (
               <Elements stripe={stripePromise} options={options}>
                 <CheckoutForm clientSecret={clientSecret} orderId={orderId} />
               </Elements>

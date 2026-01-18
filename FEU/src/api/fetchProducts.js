@@ -3,6 +3,7 @@ import { API_BASE_URL, API_URL } from "./constant";
 
 export const getAllProducts = async ({
   category,
+  categoryId,
   name,
   page = 0,
   size = 12,
@@ -10,6 +11,8 @@ export const getAllProducts = async ({
   let url = API_BASE_URL + API_URL.GET_PRODUCTS + `?page=${page}&size=${size}&`;
 
   if (category) url += `category=${category}&`;
+  if (categoryId !== undefined && categoryId !== null)
+    url += `categoryId=${encodeURIComponent(categoryId)}&`;
   if (name) url += `name=${encodeURIComponent(name)}&`;
 
   url = url.replace(/&$/, "");

@@ -11,6 +11,11 @@ const CheckoutError = class extends Error {
 };
 
 // Helper function to refund PayPal payment
+// - `captureId`: PayPal capture ID previously stored when capturing a payment
+// - `amount`: when null => full refund; otherwise pass numeric amount (in USD) for partial refund
+// Notes:
+// - PayPal requires currency and value for partial refunds. Here we assume USD; if multi-currency
+//   support is required, adapt to use the captured payment's currency.
 export const refundPayPalPayment = async (captureId, amount = null) => {
   try {
     const client = getPaypalClient();
@@ -87,9 +92,9 @@ const checkoutCart = async ({
 
     const newOrder = await Order.create(
       {
-        studentId: userId,
+        userId,
         storeId: storeId || 1, // Use provided storeId or default to 1
-        staffId: null,
+        managerId: null,
         total_quantity: totalQuantity,
         total_price: totalPrice,
         discount,
@@ -113,7 +118,7 @@ const checkoutCart = async ({
 
     await t.commit();
     return await Order.findByPk(newOrder.id, {
-      include: [{ model: OrderDetail }],
+      include: [{ association: "orderDetails" }],
     });
   } catch (error) {
     await t.rollback();
@@ -278,6 +283,13 @@ export const capturePaypalOrder = async (req, res) => {
     }
 
     // Create order from orderData (not from cart)
+    // Explanation:
+    // - When the frontend initiates a PayPal payment, it may save the `orderData` (items/shipping)
+    //   to create the Order after PayPal returns a successful capture. This avoids relying on
+    //   the user's cart state (which could change during the redirect flow).
+    // - We store `paypal_order_id` and `paypal_capture_id` on the Order so future refund operations
+    //   can identify and refund the exact PayPal capture.
+    // - If `orderData` is not provided we fallback to `checkoutCart` which uses the current cart.
     let order;
     if (orderData && orderData.items && orderData.items.length > 0) {
       // Use orderData from frontend (saved before PayPal redirect)
@@ -302,9 +314,9 @@ export const capturePaypalOrder = async (req, res) => {
 
         const newOrder = await Order.create(
           {
-            studentId: resolvedUserId,
+            userId: resolvedUserId,
             storeId: storeId || orderData.storeId || 1,
-            staffId: null,
+            managerId: null,
             total_quantity,
             total_price,
             discount,
@@ -356,7 +368,7 @@ export const capturePaypalOrder = async (req, res) => {
         console.log("[PayPal Capture] Transaction committed successfully");
 
         order = await Order.findByPk(newOrder.id, {
-          include: [{ model: OrderDetail, as: "orderDetails" }],
+          include: [{ association: "orderDetails" }],
         });
 
         if (!order) {

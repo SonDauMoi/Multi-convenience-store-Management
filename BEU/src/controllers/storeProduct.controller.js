@@ -19,7 +19,7 @@ export const getStoreProducts = async (req, res) => {
     if (!storeId) {
       return res.status(400).json({
         success: false,
-        message: "Không xác định được cửa hàng",
+        message: "Unable to determine store",
       });
     }
 
@@ -65,7 +65,7 @@ export const getStoreProducts = async (req, res) => {
     console.error("Error getting store products:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
     });
   }
 };
@@ -83,14 +83,14 @@ export const addProductToStore = async (req, res) => {
     if (!productTemplateId || !quantity) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin sản phẩm hoặc số lượng",
+        message: "Missing product or quantity information",
       });
     }
 
     if (quantity <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Số lượng phải lớn hơn 0",
+        message: "Quantity must be greater than 0",
       });
     }
 
@@ -99,7 +99,7 @@ export const addProductToStore = async (req, res) => {
     if (!template) {
       return res.status(404).json({
         success: false,
-        message: "Sản phẩm mẫu không tồn tại",
+        message: "Product template not found",
       });
     }
 
@@ -119,7 +119,7 @@ export const addProductToStore = async (req, res) => {
 
       return res.json({
         success: true,
-        message: "Đã cập nhật số lượng sản phẩm",
+        message: "Product quantity updated",
         data: existingProduct,
       });
     }
@@ -135,14 +135,14 @@ export const addProductToStore = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Thêm sản phẩm vào cửa hàng thành công",
+      message: "Product added to store successfully",
       data: newStoreProduct,
     });
   } catch (error) {
     console.error("Error adding product to store:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
     });
   }
 };
@@ -159,7 +159,7 @@ export const updateStoreProductQuantity = async (req, res) => {
     if (quantity === undefined || quantity < 0) {
       return res.status(400).json({
         success: false,
-        message: "Số lượng không hợp lệ",
+        message: "Invalid quantity",
       });
     }
 
@@ -167,7 +167,7 @@ export const updateStoreProductQuantity = async (req, res) => {
     if (!storeProduct) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy sản phẩm",
+        message: "Product not found",
       });
     }
 
@@ -175,7 +175,7 @@ export const updateStoreProductQuantity = async (req, res) => {
     if (user.role === "manager" && storeProduct.store_id !== user.storeId) {
       return res.status(403).json({
         success: false,
-        message: "Không có quyền chỉnh sửa sản phẩm này",
+        message: "You are not allowed to edit this product",
       });
     }
 
@@ -185,14 +185,14 @@ export const updateStoreProductQuantity = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Cập nhật số lượng thành công",
+      message: "Quantity updated successfully",
       data: storeProduct,
     });
   } catch (error) {
     console.error("Error updating quantity:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
     });
   }
 };
@@ -209,7 +209,7 @@ export const removeProductFromStore = async (req, res) => {
     if (!storeProduct) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy sản phẩm",
+        message: "Product not found",
       });
     }
 
@@ -217,7 +217,7 @@ export const removeProductFromStore = async (req, res) => {
     if (user.role === "manager" && storeProduct.store_id !== user.storeId) {
       return res.status(403).json({
         success: false,
-        message: "Không có quyền xóa sản phẩm này",
+        message: "You are not allowed to delete this product",
       });
     }
 
@@ -225,13 +225,13 @@ export const removeProductFromStore = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Xóa sản phẩm khỏi cửa hàng thành công",
+      message: "Product removed from store successfully",
     });
   } catch (error) {
     console.error("Error removing product:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
     });
   }
 };
@@ -284,7 +284,7 @@ export const getStoresWithProduct = async (req, res) => {
     console.error("Error getting stores with product:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
     });
   }
 };

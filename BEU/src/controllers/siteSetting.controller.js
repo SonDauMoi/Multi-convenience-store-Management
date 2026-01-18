@@ -21,7 +21,7 @@ export const getSettings = async (req, res) => {
     res.status(200).json(settingsObj);
   } catch (error) {
     console.error("Get settings error:", error);
-    res.status(500).json({ message: "Lỗi khi lấy settings" });
+    res.status(500).json({ message: "Failed to fetch settings" });
   }
 };
 
@@ -38,7 +38,7 @@ export const getAllSettingsAdmin = async (req, res) => {
     res.status(200).json(settings);
   } catch (error) {
     console.error("Get all settings error:", error);
-    res.status(500).json({ message: "Lỗi khi lấy settings" });
+    res.status(500).json({ message: "Failed to fetch settings" });
   }
 };
 
@@ -48,7 +48,7 @@ export const upsertSetting = async (req, res) => {
     const { key, value, type } = req.body;
 
     if (!key) {
-      return res.status(400).json({ message: "Key là bắt buộc" });
+      return res.status(400).json({ message: "Key is required" });
     }
 
     const [setting, created] = await SiteSetting.upsert(
@@ -65,7 +65,7 @@ export const upsertSetting = async (req, res) => {
     res.status(created ? 201 : 200).json(setting);
   } catch (error) {
     console.error("Upsert setting error:", error);
-    res.status(500).json({ message: "Lỗi khi cập nhật setting" });
+    res.status(500).json({ message: "Failed to update setting" });
   }
 };
 
@@ -76,13 +76,13 @@ export const deleteSetting = async (req, res) => {
 
     const setting = await SiteSetting.findByPk(id);
     if (!setting) {
-      return res.status(404).json({ message: "Không tìm thấy setting" });
+      return res.status(404).json({ message: "Setting not found" });
     }
 
     await setting.destroy();
-    res.status(200).json({ message: "Xóa setting thành công" });
+    res.status(200).json({ message: "Setting deleted successfully" });
   } catch (error) {
     console.error("Delete setting error:", error);
-    res.status(500).json({ message: "Lỗi khi xóa setting" });
+    res.status(500).json({ message: "Failed to delete setting" });
   }
 };

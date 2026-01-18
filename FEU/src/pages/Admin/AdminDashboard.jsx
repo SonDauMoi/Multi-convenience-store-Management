@@ -6,9 +6,7 @@ import BannerManagement from "./BannerManagement.jsx";
 import StoreRevenueAnalytics from "./StoreRevenueAnalytics.jsx";
 import { API_BASE_URL } from "../../api/constant";
 import { getAccessToken, getUserInfo } from "../../utils/jwt-helper";
-import { logoutAPI } from "../../api/authencation";
-
-// Fully clean rewritten dashboard. Once verified, replace old AdminDashboard.jsx import with this component.
+import DashboardLayout from "../../components/commom/DashboardLayout.jsx";
 
 const AdminDashboardClean = () => {
   const navigate = useNavigate();
@@ -16,7 +14,6 @@ const AdminDashboardClean = () => {
     totalUsers: 0,
     totalManagers: 0,
     totalStores: 0,
-    totalOrders: 0,
     totalProducts: 0,
   });
   const [users, setUsers] = useState([]);
@@ -24,50 +21,22 @@ const AdminDashboardClean = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const [showNotification, setShowNotification] = useState(false);
-  const [notification, setNotification] = useState({ type: "", message: "" });
+  
+  const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
+  const [confirmData, setConfirmData] = useState({ show: false, title: "", message: "", onConfirm: () => {}, type: "danger" });
 
-  // User state
-  const [showCreateUser, setShowCreateUser] = useState(false);
-  const [newUser, setNewUser] = useState({
-    username: "",
-    name: "",
-    email: "",
-    password: "",
-    phone: "",
-    role: "user",
-    storeId: "",
-  });
-  const [editingUserId, setEditingUserId] = useState(null);
-  const [editUserData, setEditUserData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    storeId: "",
-  });
+  const showNotify = (message, type = "success") => {
+    setNotification({ show: true, message, type });
+  };
 
-  // Store state
-  const [showCreateStore, setShowCreateStore] = useState(false);
-  const [newStore, setNewStore] = useState({
-    name: "",
-    address: "",
-    phone: "",
-  });
-  const [editingStoreId, setEditingStoreId] = useState(null);
-  const [editStoreData, setEditStoreData] = useState({
-    name: "",
-    address: "",
-    phone: "",
-  });
+  // State for Create/Edit Modals (integrated into tabs for simplicity or could be separate modals)
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [newUser, setNewUser] = useState({ username: "", name: "", email: "", password: "", phone: "", role: "user", storeId: "" });
+  const [editingUser, setEditingUser] = useState(null);
 
-  // Delete modal
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState({ type: null, id: null });
-
-  // Search
-  const [userSearchTerm, setUserSearchTerm] = useState("");
-  const [managerSearchTerm, setManagerSearchTerm] = useState("");
-  const [storeSearchTerm, setStoreSearchTerm] = useState("");
+  const [showStoreForm, setShowStoreForm] = useState(false);
+  const [newStore, setNewStore] = useState({ name: "", address: "", phone: "" });
+  const [editingStore, setEditingStore] = useState(null);
 
   useEffect(() => {
     const info = getUserInfo();
@@ -78,1185 +47,282 @@ const AdminDashboardClean = () => {
     fetchData();
   }, [navigate]);
 
-  const showNotif = (type, message) => {
-    setNotification({ type, message });
-    setShowNotification(true);
-    setTimeout(() => setShowNotification(false), 2600);
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
       const token = getAccessToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const [usersRes, managersRes, storesRes, productsRes] = await Promise.all(
-        [
-          axios.get(`${API_BASE_URL}/user`, { headers }),
-          axios.get(`${API_BASE_URL}/user/managers`, { headers }),
-          axios.get(`${API_BASE_URL}/stores`),
-          axios.get(`${API_BASE_URL}/admin/product-templates`, { headers }),
-        ]
-      );
+      const [usersRes, managersRes, storesRes, productsRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/user`, { headers }),
+        axios.get(`${API_BASE_URL}/user/managers`, { headers }),
+        axios.get(`${API_BASE_URL}/stores`),
+        axios.get(`${API_BASE_URL}/admin/product-templates`, { headers }),
+      ]);
       setUsers(usersRes.data);
       setManagers(managersRes.data);
       setStores(storesRes.data);
-      setStats((prev) => ({
-        ...prev,
+      setStats({
         totalUsers: usersRes.data.length,
         totalManagers: managersRes.data.length,
         totalStores: storesRes.data.length,
         totalProducts: productsRes.data.length,
-      }));
+      });
     } catch (e) {
-      console.error(e);
-      showNotif("error", "Lỗi tải dữ liệu");
+      showNotify("Failed to load data", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // User CRUD
-  const handleCreateUser = async (e) => {
+  // --- USER ACTIONS ---
+  const handleUserSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = getAccessToken();
-      await axios.post(`${API_BASE_URL}/user`, newUser, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      showNotif("success", "Thêm người dùng thành công");
-      setShowCreateUser(false);
-      setNewUser({
-        username: "",
-        name: "",
-        email: "",
-        password: "",
-        phone: "",
-        role: "user",
-        storeId: "",
-      });
+      if (editingUser) {
+        await axios.put(`${API_BASE_URL}/user/${editingUser.id}`, editingUser, { headers: { Authorization: `Bearer ${token}` } });
+        showNotify("User updated successfully");
+      } else {
+        await axios.post(`${API_BASE_URL}/user`, newUser, { headers: { Authorization: `Bearer ${token}` } });
+        showNotify("User created successfully");
+      }
+      setShowUserForm(false);
+      setEditingUser(null);
+      setNewUser({ username: "", name: "", email: "", password: "", phone: "", role: "user", storeId: "" });
       fetchData();
     } catch (e) {
-      console.error(e);
-      showNotif(
-        "error",
-        e.response?.data?.message || "Không thể thêm người dùng"
-      );
-    }
-  };
-  const startEditUser = (u) => {
-    setEditingUserId(u.id);
-    setEditUserData({
-      name: u.name || "",
-      email: u.email || "",
-      phone: u.phone || "",
-      storeId: u.storeId || "",
-    });
-  };
-  const cancelEditUser = () => {
-    setEditingUserId(null);
-    setEditUserData({ name: "", email: "", phone: "", storeId: "" });
-  };
-  const saveEditUser = async (id) => {
-    try {
-      const token = getAccessToken();
-      await axios.put(`${API_BASE_URL}/user/${id}`, editUserData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      showNotif("success", "Cập nhật thành công");
-      cancelEditUser();
-      fetchData();
-    } catch (e) {
-      console.error(e);
-      showNotif("error", e.response?.data?.message || "Không thể cập nhật");
-    }
-  };
-  const confirmDeleteUser = (id) => {
-    setDeleteTarget({ type: "user", id });
-    setShowDeleteModal(true);
-  };
-  const deleteUser = async () => {
-    if (!deleteTarget.id) return;
-    try {
-      const token = getAccessToken();
-      await axios.delete(`${API_BASE_URL}/user/${deleteTarget.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      showNotif("success", "Xóa người dùng thành công");
-      setShowDeleteModal(false);
-      setDeleteTarget({ type: null, id: null });
-      fetchData();
-    } catch (e) {
-      console.error(e);
-      showNotif(
-        "error",
-        e.response?.data?.message || "Không thể xóa người dùng"
-      );
+      showNotify(e.response?.data?.message || "Action failed", "error");
     }
   };
 
-  // Store CRUD
-  const handleCreateStore = async (e) => {
+  const deleteUser = (id, name) => {
+    setConfirmData({
+      show: true,
+      title: "Delete Account",
+      message: `Are you sure you want to delete "${name}"?`,
+      onConfirm: async () => {
+        try {
+          const token = getAccessToken();
+          await axios.delete(`${API_BASE_URL}/user/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+          showNotify("User deleted");
+          fetchData();
+        } catch (e) { showNotify("Delete failed", "error"); }
+        finally { setConfirmData(prev => ({ ...prev, show: false })); }
+      }
+    });
+  };
+
+  // --- STORE ACTIONS ---
+  const handleStoreSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = getAccessToken();
-      await axios.post(`${API_BASE_URL}/stores`, newStore, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      showNotif("success", "Thêm cửa hàng thành công");
-      setShowCreateStore(false);
+      if (editingStore) {
+        await axios.put(`${API_BASE_URL}/stores/${editingStore.id}`, editingStore, { headers: { Authorization: `Bearer ${token}` } });
+        showNotify("Store updated");
+      } else {
+        await axios.post(`${API_BASE_URL}/stores`, newStore, { headers: { Authorization: `Bearer ${token}` } });
+        showNotify("Store added");
+      }
+      setShowStoreForm(false);
+      setEditingStore(null);
       setNewStore({ name: "", address: "", phone: "" });
       fetchData();
-    } catch (e) {
-      console.error(e);
-      showNotif(
-        "error",
-        e.response?.data?.message || "Không thể thêm cửa hàng"
-      );
-    }
+    } catch (e) { showNotify("Action failed", "error"); }
   };
-  const startEditStore = (s) => {
-    setEditingStoreId(s.id);
-    setEditStoreData({
-      name: s.name || "",
-      address: s.address || "",
-      phone: s.phone || "",
+
+  const deleteStore = (id, name) => {
+    setConfirmData({
+      show: true,
+      title: "Delete Store",
+      message: `Are you sure you want to delete store "${name}"?`,
+      onConfirm: async () => {
+        try {
+          const token = getAccessToken();
+          await axios.delete(`${API_BASE_URL}/stores/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+          showNotify("Store deleted");
+          fetchData();
+        } catch (e) { showNotify("Delete failed", "error"); }
+        finally { setConfirmData(prev => ({ ...prev, show: false })); }
+      }
     });
   };
-  const cancelEditStore = () => {
-    setEditingStoreId(null);
-    setEditStoreData({ name: "", address: "", phone: "" });
-  };
-  const saveEditStore = async (id) => {
-    try {
-      const token = getAccessToken();
-      await axios.put(`${API_BASE_URL}/stores/${id}`, editStoreData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      showNotif("success", "Cập nhật cửa hàng thành công");
-      cancelEditStore();
-      fetchData();
-    } catch (e) {
-      console.error(e);
-      showNotif(
-        "error",
-        e.response?.data?.message || "Không thể cập nhật cửa hàng"
-      );
-    }
-  };
-  const confirmDeleteStore = (id) => {
-    setDeleteTarget({ type: "store", id });
-    setShowDeleteModal(true);
-  };
-  const deleteStore = async () => {
-    if (!deleteTarget.id) return;
-    try {
-      const token = getAccessToken();
-      await axios.delete(`${API_BASE_URL}/stores/${deleteTarget.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      showNotif("success", "Xóa cửa hàng thành công");
-      setShowDeleteModal(false);
-      setDeleteTarget({ type: null, id: null });
-      fetchData();
-    } catch (e) {
-      console.error(e);
-      showNotif("error", e.response?.data?.message || "Không thể xóa cửa hàng");
-    }
-  };
 
-  const handleLogout = async () => {
-    await logoutAPI();
-    navigate("/");
-  };
+  const renderActiveTabContent = () => {
+    const tableHeaderClass = "px-6 py-3 text-left text-[10px] font-black text-white uppercase tracking-widest";
+    const rowTextClass = "px-6 py-4 text-sm font-medium text-gray-700";
+    const actionBtnClass = "p-1.5 border border-black rounded text-black hover:bg-black hover:text-white transition-all";
 
-  // Filters
-  const filteredUsers = users.filter(
-    (u) =>
-      u.username?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-      u.name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(userSearchTerm.toLowerCase())
-  );
-  const filteredManagers = managers.filter(
-    (m) =>
-      m.username?.toLowerCase().includes(managerSearchTerm.toLowerCase()) ||
-      m.name?.toLowerCase().includes(managerSearchTerm.toLowerCase()) ||
-      m.email?.toLowerCase().includes(managerSearchTerm.toLowerCase())
-  );
-  const filteredStores = stores.filter(
-    (s) =>
-      s.name?.toLowerCase().includes(storeSearchTerm.toLowerCase()) ||
-      s.address?.toLowerCase().includes(storeSearchTerm.toLowerCase())
-  );
-
-  const renderOverview = () => (
-    <div className="space-y-8">
-      <div className="bg-gradient-to-r from-[#0A68FE] to-[#0052CC] rounded-xl p-8 text-white shadow">
-        <h3 className="text-2xl font-bold mb-2">
-          Chào mừng đến Admin Dashboard
-        </h3>
-        <p className="text-blue-100">
-          Quản lý hệ thống Multi-Convenience Store Management
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h4 className="text-sm font-medium text-gray-600 mb-1">Tổng Users</h4>
-          <p className="text-3xl font-bold text-gray-900">{stats.totalUsers}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h4 className="text-sm font-medium text-gray-600 mb-1">
-            Tổng Managers
-          </h4>
-          <p className="text-3xl font-bold text-gray-900">
-            {stats.totalManagers}
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h4 className="text-sm font-medium text-gray-600 mb-1">
-            Tổng Cửa hàng
-          </h4>
-          <p className="text-3xl font-bold text-gray-900">
-            {stats.totalStores}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderUsers = () => (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Người dùng ({filteredUsers.length})
-        </h3>
-        <button
-          onClick={() => setShowCreateUser(!showCreateUser)}
-          className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium"
-        >
-          + Thêm
-        </button>
-      </div>
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Tìm kiếm theo tên, username, email..."
-          value={userSearchTerm}
-          onChange={(e) => setUserSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-        />
-      </div>
-      {showCreateUser && (
-        <div className="mb-6 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-          <h4 className="font-semibold mb-4 text-gray-900">
-            Thêm người dùng mới
-          </h4>
-          <form onSubmit={handleCreateUser} className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Username"
-              value={newUser.username}
-              onChange={(e) =>
-                setNewUser({ ...newUser, username: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              required
-            />
-            <input
-              type="text"
-              placeholder="Họ và tên"
-              value={newUser.name}
-              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={newUser.email}
-              onChange={(e) =>
-                setNewUser({ ...newUser, email: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={newUser.password}
-              onChange={(e) =>
-                setNewUser({ ...newUser, password: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              required
-            />
-            <input
-              type="tel"
-              placeholder="Số điện thoại"
-              value={newUser.phone}
-              onChange={(e) =>
-                setNewUser({ ...newUser, phone: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-            />
-            <select
-              value={newUser.role}
-              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-            >
-              <option value="user">User</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
-            </select>
-            {newUser.role === "manager" && (
-              <select
-                value={newUser.storeId}
-                onChange={(e) =>
-                  setNewUser({ ...newUser, storeId: e.target.value })
-                }
-                className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                required
-              >
-                <option value="">Chọn cửa hàng</option>
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} - {s.address}
-                  </option>
-                ))}
-              </select>
-            )}
-            <div className="col-span-2 flex gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium"
-              >
-                Thêm
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateUser(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium"
-              >
-                Hủy
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-black">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  USERNAME
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  TÊN
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  EMAIL
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  PHONE
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  TRẠNG THÁI
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  HÀNH ĐỘNG
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-gray-500"
-                  >
-                    Không tìm thấy người dùng
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {u.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap font-medium">
-                      {u.username}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === u.id ? (
-                        <input
-                          type="text"
-                          value={editUserData.name}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              name: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        u.name
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === u.id ? (
-                        <input
-                          type="email"
-                          value={editUserData.email}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              email: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        u.email
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === u.id ? (
-                        <input
-                          type="tel"
-                          value={editUserData.phone}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              phone: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        u.phone || "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          u.isVerified
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {u.isVerified ? "Đã xác thực" : "Chưa xác thực"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === u.id ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => saveEditUser(u.id)}
-                            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium"
-                          >
-                            Lưu
-                          </button>
-                          <button
-                            onClick={cancelEditUser}
-                            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full text-xs font-medium"
-                          >
-                            Hủy
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEditUser(u)}
-                            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium"
-                          >
-                            Sửa
-                          </button>
-                          <button
-                            onClick={() => confirmDeleteUser(u.id)}
-                            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-full text-xs font-medium"
-                          >
-                            Xóa
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderManagers = () => (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Quản lý ({filteredManagers.length})
-        </h3>
-        <button
-          onClick={() => {
-            setShowCreateUser(true);
-            setNewUser({
-              username: "",
-              name: "",
-              email: "",
-              password: "",
-              phone: "",
-              role: "manager",
-              storeId: "",
-            });
-          }}
-          className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium"
-        >
-          + Thêm quản lý
-        </button>
-      </div>
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Tìm kiếm theo tên, username, email..."
-          value={managerSearchTerm}
-          onChange={(e) => setManagerSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-        />
-      </div>
-      {showCreateUser && newUser.role === "manager" && (
-        <div className="mb-6 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-          <h4 className="font-semibold mb-4 text-gray-900">Thêm quản lý mới</h4>
-          <form onSubmit={handleCreateUser} className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Username"
-              value={newUser.username}
-              onChange={(e) =>
-                setNewUser({ ...newUser, username: e.target.value })
-              }
-              className="p-2 border rounded-lg"
-              required
-            />
-            <input
-              type="text"
-              placeholder="Họ và tên"
-              value={newUser.name}
-              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-              className="p-2 border rounded-lg"
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={newUser.email}
-              onChange={(e) =>
-                setNewUser({ ...newUser, email: e.target.value })
-              }
-              className="p-2 border rounded-lg"
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={newUser.password}
-              onChange={(e) =>
-                setNewUser({ ...newUser, password: e.target.value })
-              }
-              className="p-2 border rounded-lg"
-              required
-            />
-            <input
-              type="tel"
-              placeholder="Số điện thoại"
-              value={newUser.phone}
-              onChange={(e) =>
-                setNewUser({ ...newUser, phone: e.target.value })
-              }
-              className="p-2 border rounded-lg"
-            />
-            <select
-              value={newUser.storeId}
-              onChange={(e) =>
-                setNewUser({ ...newUser, storeId: e.target.value })
-              }
-              className="p-2 border rounded-lg"
-              required
-            >
-              <option value="">Chọn cửa hàng</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} - {s.address}
-                </option>
-              ))}
-            </select>
-            <div className="col-span-2 flex gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium"
-              >
-                Thêm
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateUser(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium"
-              >
-                Hủy
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-black">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  USERNAME
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  TÊN
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  EMAIL
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  PHONE
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  CỬA HÀNG
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  HÀNH ĐỘNG
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredManagers.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-gray-500"
-                  >
-                    Không tìm thấy quản lý
-                  </td>
-                </tr>
-              ) : (
-                filteredManagers.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {m.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap font-medium">
-                      {m.username}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === m.id ? (
-                        <input
-                          type="text"
-                          value={editUserData.name}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              name: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        m.name
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === m.id ? (
-                        <input
-                          type="email"
-                          value={editUserData.email}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              email: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        m.email
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === m.id ? (
-                        <input
-                          type="tel"
-                          value={editUserData.phone}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              phone: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        m.phone || "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === m.id ? (
-                        <select
-                          value={editUserData.storeId}
-                          onChange={(e) =>
-                            setEditUserData({
-                              ...editUserData,
-                              storeId: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        >
-                          <option value="">Chọn cửa hàng</option>
-                          {stores.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                          {stores.find((s) => s.id === m.storeId)?.name || "-"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingUserId === m.id ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => saveEditUser(m.id)}
-                            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium"
-                          >
-                            Lưu
-                          </button>
-                          <button
-                            onClick={cancelEditUser}
-                            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full text-xs font-medium"
-                          >
-                            Hủy
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEditUser(m)}
-                            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium"
-                          >
-                            Sửa
-                          </button>
-                          <button
-                            onClick={() => confirmDeleteUser(m.id)}
-                            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-full text-xs font-medium"
-                          >
-                            Xóa
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStores = () => (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Cửa hàng ({filteredStores.length})
-        </h3>
-        <button
-          onClick={() => setShowCreateStore(!showCreateStore)}
-          className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium"
-        >
-          + Thêm cửa hàng
-        </button>
-      </div>
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Tìm kiếm theo tên, địa chỉ..."
-          value={storeSearchTerm}
-          onChange={(e) => setStoreSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-        />
-      </div>
-      {showCreateStore && (
-        <div className="mb-6 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-          <h4 className="font-semibold mb-4 text-gray-900">
-            Thêm cửa hàng mới
-          </h4>
-          <form onSubmit={handleCreateStore} className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Tên cửa hàng"
-              value={newStore.name}
-              onChange={(e) =>
-                setNewStore({ ...newStore, name: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              required
-            />
-            <input
-              type="text"
-              placeholder="Địa chỉ"
-              value={newStore.address}
-              onChange={(e) =>
-                setNewStore({ ...newStore, address: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              required
-            />
-            <input
-              type="tel"
-              placeholder="Số điện thoại"
-              value={newStore.phone}
-              onChange={(e) =>
-                setNewStore({ ...newStore, phone: e.target.value })
-              }
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent col-span-2"
-            />
-            <div className="col-span-2 flex gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium"
-              >
-                Thêm
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateStore(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium"
-              >
-                Hủy
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-black">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Tên cửa hàng
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Địa chỉ
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Số điện thoại
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Hành động
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredStores.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-6 py-8 text-center text-gray-500"
-                  >
-                    Không tìm thấy cửa hàng
-                  </td>
-                </tr>
-              ) : (
-                filteredStores.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {s.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingStoreId === s.id ? (
-                        <input
-                          type="text"
-                          value={editStoreData.name}
-                          onChange={(e) =>
-                            setEditStoreData({
-                              ...editStoreData,
-                              name: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        <span className="font-medium">{s.name}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingStoreId === s.id ? (
-                        <input
-                          type="text"
-                          value={editStoreData.address}
-                          onChange={(e) =>
-                            setEditStoreData({
-                              ...editStoreData,
-                              address: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        s.address
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingStoreId === s.id ? (
-                        <input
-                          type="tel"
-                          value={editStoreData.phone}
-                          onChange={(e) =>
-                            setEditStoreData({
-                              ...editStoreData,
-                              phone: e.target.value,
-                            })
-                          }
-                          className="p-1 border rounded w-full"
-                        />
-                      ) : (
-                        s.phone || "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap">
-                      {editingStoreId === s.id ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => saveEditStore(s.id)}
-                            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium"
-                          >
-                            Lưu
-                          </button>
-                          <button
-                            onClick={cancelEditStore}
-                            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full text-xs font-medium"
-                          >
-                            Hủy
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEditStore(s)}
-                            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium"
-                          >
-                            Sửa
-                          </button>
-                          <button
-                            onClick={() => confirmDeleteStore(s.id)}
-                            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-full text-xs font-medium"
-                          >
-                            Xóa
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderActiveTab = () => {
     switch (activeTab) {
       case "overview":
-        return renderOverview();
+        return (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="bg-gradient-to-r from-[#0A68FE] to-[#0052CC] rounded-xl p-8 text-white shadow">
+              <h3 className="text-2xl font-bold mb-2">Welcome to the Admin Dashboard</h3>
+              <p className="text-blue-100">System management overview and quick statistics.</p>
+            </div>
+          </div>
+        );
+
       case "users":
-        return renderUsers();
       case "managers":
-        return renderManagers();
+        const isManagerTab = activeTab === "managers";
+        const displayData = isManagerTab ? managers : users;
+        return (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-black uppercase tracking-tight">{activeTab} ({displayData.length})</h3>
+              <button onClick={() => { setShowUserForm(true); setEditingUser(null); }} className="px-4 py-2 bg-black text-white rounded-lg font-bold transition-all shadow-md active:scale-95 text-xs">+ Create User</button>
+            </div>
+
+            {showUserForm && (
+              <div className="mb-6 p-6 bg-gray-50 border rounded-xl animate-fadeIn">
+                <form onSubmit={handleUserSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input type="text" placeholder="Username" value={editingUser ? editingUser.username : newUser.username} onChange={(e) => editingUser ? setEditingUser({...editingUser, username: e.target.value}) : setNewUser({ ...newUser, username: e.target.value })} className="p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" required />
+                  <input type="text" placeholder="Full Name" value={editingUser ? editingUser.name : newUser.name} onChange={(e) => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({ ...newUser, name: e.target.value })} className="p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" required />
+                  <input type="email" placeholder="Email" value={editingUser ? editingUser.email : newUser.email} onChange={(e) => editingUser ? setEditingUser({...editingUser, email: e.target.value}) : setNewUser({ ...newUser, email: e.target.value })} className="p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" required />
+                  <input type="tel" placeholder="Phone" value={editingUser ? editingUser.phone : newUser.phone} onChange={(e) => editingUser ? setEditingUser({...editingUser, phone: e.target.value}) : setNewUser({ ...newUser, phone: e.target.value })} className="p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" />
+                  {!editingUser && <input type="password" placeholder="Password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} className="p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none" required />}
+                  <select value={editingUser ? editingUser.role : newUser.role} onChange={(e) => editingUser ? setEditingUser({...editingUser, role: e.target.value}) : setNewUser({ ...newUser, role: e.target.value })} className="p-2 border rounded-lg focus:ring-2 focus:ring-black outline-none">
+                    <option value="user">User</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <div className="col-span-1 md:col-span-2 flex gap-3">
+                    <button type="submit" className="px-6 py-2 bg-black text-white rounded-lg font-bold">{editingUser ? "Update" : "Save"}</button>
+                    <button type="button" onClick={() => { setShowUserForm(false); setEditingUser(null); }} className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-black">
+                    <tr>
+                      <th className={tableHeaderClass}>ID</th>
+                      <th className={tableHeaderClass}>Username</th>
+                      <th className={tableHeaderClass}>Name</th>
+                      <th className={tableHeaderClass}>Email</th>
+                      <th className={tableHeaderClass}>Phone</th>
+                      {isManagerTab && <th className={tableHeaderClass}>Store</th>}
+                      <th className={tableHeaderClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {displayData.map(u => (
+                      <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                        <td className={rowTextClass}>{u.id}</td>
+                        <td className={rowTextClass}>{u.username}</td>
+                        <td className={rowTextClass}>{u.name}</td>
+                        <td className={rowTextClass}>{u.email}</td>
+                        <td className={rowTextClass}>{u.phone || "-"}</td>
+                        {isManagerTab && <td className={rowTextClass}><span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-[10px] font-bold uppercase">{stores.find(s => s.id === u.storeId)?.name || "Unassigned"}</span></td>}
+                        <td className="px-6 py-4 flex gap-2">
+                          <button onClick={() => { setEditingUser(u); setShowUserForm(true); }} className={actionBtnClass}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                          <button onClick={() => deleteUser(u.id, u.username)} className={`${actionBtnClass} hover:bg-red-600 hover:border-red-600 hover:text-white`}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14"/></svg></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+
       case "stores":
-        return renderStores();
-      case "products":
-        return <ProductManagement />;
-      case "banners":
-        return <BannerManagement />;
-      case "revenue":
-        return <StoreRevenueAnalytics />;
-      default:
-        return null;
+        return (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-black uppercase tracking-tight">Branches ({stores.length})</h3>
+              <button onClick={() => { setShowStoreForm(true); setEditingStore(null); }} className="px-4 py-2 bg-black text-white rounded-lg font-bold text-xs">+ Add Store</button>
+            </div>
+
+            {showStoreForm && (
+              <div className="mb-6 p-6 bg-gray-50 border rounded-xl animate-fadeIn">
+                <form onSubmit={handleStoreSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input type="text" placeholder="Store Name" value={editingStore ? editingStore.name : newStore.name} onChange={(e) => editingStore ? setEditingStore({...editingStore, name: e.target.value}) : setNewStore({ ...newStore, name: e.target.value })} className="p-2 border rounded-lg" required />
+                  <input type="text" placeholder="Address" value={editingStore ? editingStore.address : newStore.address} onChange={(e) => editingStore ? setEditingStore({...editingStore, address: e.target.value}) : setNewStore({ ...newStore, address: e.target.value })} className="p-2 border rounded-lg" required />
+                  <input type="tel" placeholder="Phone" value={editingStore ? editingStore.phone : newStore.phone} onChange={(e) => editingStore ? setEditingStore({...editingStore, phone: e.target.value}) : setNewStore({ ...newStore, phone: e.target.value })} className="p-2 border rounded-lg" />
+                  <div className="col-span-1 md:col-span-2 flex gap-3">
+                    <button type="submit" className="px-6 py-2 bg-black text-white rounded-lg font-bold">{editingStore ? "Update" : "Save"}</button>
+                    <button type="button" onClick={() => { setShowStoreForm(false); setEditingStore(null); }} className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-black">
+                  <tr>
+                    <th className={tableHeaderClass}>ID</th>
+                    <th className={tableHeaderClass}>Store Name</th>
+                    <th className={tableHeaderClass}>Address</th>
+                    <th className={tableHeaderClass}>Phone</th>
+                    <th className={tableHeaderClass}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {stores.map(s => (
+                    <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                      <td className={rowTextClass}>{s.id}</td>
+                      <td className={rowTextClass}>{s.name}</td>
+                      <td className={rowTextClass}>{s.address}</td>
+                      <td className={rowTextClass}>{s.phone || "-"}</td>
+                      <td className="px-6 py-4 flex gap-2">
+                        <button onClick={() => { setEditingStore(s); setShowStoreForm(true); }} className={actionBtnClass}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                        <button onClick={() => deleteStore(s.id, s.name)} className={`${actionBtnClass} hover:bg-red-600 hover:border-red-600 hover:text-white`}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14"/></svg></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case "products": return <ProductManagement />;
+      case "banners": return <BannerManagement />;
+      case "revenue": return <StoreRevenueAnalytics />;
+      default: return null;
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0A68FE]"></div>
-      </div>
-    );
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "users", label: "Users" },
+    { id: "managers", label: "Managers" },
+    { id: "stores", label: "Stores" },
+    { id: "products", label: "Products" },
+    { id: "banners", label: "Banners" },
+    { id: "revenue", label: "Revenue" },
+  ];
+
+  const statsList = [
+    { label: "Total Users", value: stats.totalUsers },
+    { label: "Managers", value: stats.totalManagers },
+    { label: "Stores", value: stats.totalStores },
+    { label: "Products", value: stats.totalProducts },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Admin Dashboard
-            </h1>
-            <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-              Administrator
-            </span>
-          </div>
-          <button
-            onClick={async () => {
-              await handleLogout();
-            }}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-          >
-            Đăng xuất
-          </button>
-        </div>
-      </header>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Tổng người dùng</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {stats.totalUsers}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Quản lý</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {stats.totalManagers}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Cửa hàng</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {stats.totalStores}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Sản phẩm</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {stats.totalProducts}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="border-b border-gray-200">
-            <nav className="flex gap-8 px-6 overflow-x-auto" aria-label="Tabs">
-              {[
-                "overview",
-                "users",
-                "managers",
-                "stores",
-                "products",
-                "banners",
-                "revenue",
-              ].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                    activeTab === tab
-                      ? "border-[#0A68FE] text-[#0A68FE]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  {tab === "overview" && "Tổng quan"}
-                  {tab === "users" && "Người dùng"}
-                  {tab === "managers" && "Quản lý"}
-                  {tab === "stores" && "Cửa hàng"}
-                  {tab === "products" && "Sản phẩm"}
-                  {tab === "banners" && "Banner"}
-                  {tab === "revenue" && "Doanh thu"}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="p-6">{renderActiveTab()}</div>
-        </div>
-      </div>
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">
-              Xác nhận xóa
-            </h4>
-            <p className="text-gray-600 mb-6">Bạn có chắc muốn xóa mục này?</p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteTarget({ type: null, id: null });
-                }}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  deleteTarget.type === "store" ? deleteStore() : deleteUser();
-                }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-              >
-                Xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showNotification && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div
-            className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 ${
-              notification.type === "success"
-                ? "bg-green-50 border border-green-200 text-green-800"
-                : "bg-red-50 border border-red-200 text-red-800"
-            }`}
-          >
-            <span className="text-sm font-medium">{notification.message}</span>
-            <button
-              onClick={() => setShowNotification(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    <DashboardLayout
+      title="Admin Dashboard"
+      role="Administrator"
+      stats={statsList}
+      tabs={tabs}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      notification={notification}
+      setNotification={setNotification}
+      confirmData={confirmData}
+      setConfirmData={setConfirmData}
+    >
+      {renderActiveTabContent()}
+    </DashboardLayout>
   );
 };
 

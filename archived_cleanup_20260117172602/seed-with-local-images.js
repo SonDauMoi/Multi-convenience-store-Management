@@ -1,10 +1,13 @@
 /**
- * Script sinh dữ liệu ngẫu nhiên cho toàn bộ hệ thống
- * Bao gồm: Users, Stores, Categories, Products, Orders, Banners, v.v.
+ * Script seed data với ảnh từ thư mục local
+ * Sử dụng ảnh đã tải về thay vì URL từ internet
  */
 
 import { faker } from "@faker-js/faker";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import {
   sequelize,
   User,
@@ -20,60 +23,122 @@ import {
   Cart,
 } from "../src/models/index.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Cấu hình
 const CONFIG = {
-  users: 50, // Số lượng người dùng
-  stores: 10, // Số lượng cửa hàng
-  categories: 15, // Số lượng danh mục
-  productsPerCategory: 20, // Số sản phẩm mỗi danh mục
-  ordersPerUser: 5, // Số đơn hàng mỗi người dùng
-  banners: 10, // Số banner
-  minProductImages: 2, // Số ảnh tối thiểu mỗi sản phẩm
-  maxProductImages: 5, // Số ảnh tối đa mỗi sản phẩm
+  users: 50,
+  stores: 10,
+  categories: 15,
+  productsPerCategory: 20,
+  ordersPerUser: 5,
+  banners: 10,
+  minProductImages: 2,
+  maxProductImages: 5,
 };
 
-// Danh sách từ khóa ảnh cho sản phẩm theo category (dùng cho Lorem Flickr)
-const IMAGE_KEYWORDS = {
-  grocery: [
-    "meat",
-    "vegetables",
-    "fruits",
-    "fish",
-    "eggs",
-    "milk",
-    "cheese",
-    "grocery",
-  ],
-  beverage: [
-    "drinks",
-    "beverage",
-    "soda",
-    "juice",
-    "coffee",
-    "tea",
-    "beer",
-    "water",
-  ],
-  snack: [
-    "snacks",
-    "chips",
-    "cookies",
-    "candy",
-    "chocolate",
-    "crackers",
-    "nuts",
-  ],
-  household: ["cleaning", "detergent", "soap", "tissue", "bathroom", "kitchen"],
-  personal_care: [
-    "cosmetics",
-    "skincare",
-    "shampoo",
-    "perfume",
-    "makeup",
-    "beauty",
-  ],
-  other: ["stationery", "office", "pen", "notebook", "supplies", "battery"],
-};
+// Đường dẫn ảnh
+const IMAGES_DIR = path.join(__dirname, "../public/images");
+const MAPPING_FILE = path.join(IMAGES_DIR, "image-mapping.json");
+
+/**
+ * Load image mapping từ file
+ */
+function loadImageMapping() {
+  if (!fs.existsSync(MAPPING_FILE)) {
+    console.warn(
+      "⚠️  Image mapping not found. Run 'npm run download-images' first."
+    );
+    return null;
+  }
+
+  try {
+    const data = fs.readFileSync(MAPPING_FILE, "utf8");
+    return JSON.parse(data);
+  } catch (error) {
+    console.error("❌ Error loading image mapping:", error);
+    return null;
+  }
+}
+
+/**
+ * Lấy ảnh ngẫu nhiên từ mapping
+ */
+function getRandomImages(category, count = 1) {
+  const mapping = loadImageMapping();
+
+  if (!mapping || !mapping.products[category]) {
+    // Fallback to Lorem Flickr với keyword phù hợp
+    const keywordMap = {
+      grocery: "vegetables",
+      drink: "drinks",
+      snack: "snacks",
+      household: "cleaning",
+      personal: "cosmetics",
+      other: "stationery",
+    };
+    const keyword = keywordMap[category] || category;
+    return Array.from({ length: count }, (_, i) => {
+      const seed = Math.floor(Math.random() * 10000);
+      return `https://loremflickr.com/800/600/${keyword}?random=${seed}`;
+    });
+  }
+
+  const categoryImages = mapping.products[category];
+  const selectedImages = [];
+
+  for (let i = 0; i < count; i++) {
+    const randomIndex = Math.floor(Math.random() * categoryImages.length);
+    selectedImages.push(categoryImages[randomIndex]);
+  }
+
+  return selectedImages;
+}
+
+/**
+ * Lấy avatar ngẫu nhiên
+ */
+function getRandomAvatar() {
+  const mapping = loadImageMapping();
+
+  if (!mapping || !mapping.avatars || mapping.avatars.length === 0) {
+    return `https://loremflickr.com/300/300/portrait?random=${Math.random()}`;
+  }
+
+  const randomIndex = Math.floor(Math.random() * mapping.avatars.length);
+  return mapping.avatars[randomIndex];
+}
+
+/**
+ * Lấy banner ngẫu nhiên
+ */
+function getRandomBanner() {
+  const mapping = loadImageMapping();
+
+  if (!mapping || !mapping.banners || mapping.banners.length === 0) {
+    const keywords = ["shopping", "sale", "store", "market", "supermarket"];
+    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+    return `https://loremflickr.com/1200/400/${keyword}?random=${Math.random()}`;
+  }
+
+  const randomIndex = Math.floor(Math.random() * mapping.banners.length);
+  return mapping.banners[randomIndex];
+}
+
+// Tỉnh thành Việt Nam
+const VIETNAM_PROVINCES = [
+  { id: 1, name: "Hà Nội" },
+  { id: 2, name: "Hồ Chí Minh" },
+  { id: 3, name: "Đà Nẵng" },
+  { id: 4, name: "Hải Phòng" },
+  { id: 5, name: "Cần Thơ" },
+  { id: 6, name: "Bình Dương" },
+  { id: 7, name: "Đồng Nai" },
+  { id: 8, name: "Khánh Hòa" },
+  { id: 9, name: "Lâm Đồng" },
+  { id: 10, name: "Quảng Ninh" },
+];
 
 // Danh sách tên sản phẩm tiếng Việt theo danh mục
 const VIETNAMESE_PRODUCTS = {
@@ -211,152 +276,76 @@ const VIETNAMESE_PRODUCTS = {
   ],
 };
 
-// Danh sách tên danh mục tiếng Việt với mapping sang enum
-const CATEGORY_NAMES = [
+// Danh mục sản phẩm
+const CATEGORY_DATA = [
   {
     name: "Thực phẩm tươi sống",
     slug: "fresh-food",
-    keywords: "grocery",
+    imageKey: "grocery",
     enumValue: "grocery",
   },
   {
     name: "Đồ uống",
     slug: "beverages",
-    keywords: "drink",
+    imageKey: "drink",
     enumValue: "beverage",
   },
-  { name: "Đồ ăn vặt", slug: "snacks", keywords: "snack", enumValue: "snack" },
+  { name: "Đồ ăn vặt", slug: "snacks", imageKey: "snack", enumValue: "snack" },
   {
     name: "Thực phẩm đóng hộp",
     slug: "canned-food",
-    keywords: "food",
+    imageKey: "food",
     enumValue: "grocery",
   },
   {
-    name: "Gia vị nấu ăn",
-    slug: "spices",
-    keywords: "grocery",
+    name: "Rau củ quả",
+    slug: "vegetables",
+    imageKey: "vegetables",
+    enumValue: "grocery",
+  },
+  {
+    name: "Trái cây",
+    slug: "fruits",
+    imageKey: "fruits",
     enumValue: "grocery",
   },
   {
     name: "Sữa và sản phẩm từ sữa",
     slug: "dairy",
-    keywords: "grocery",
+    imageKey: "dairy",
     enumValue: "grocery",
   },
   {
     name: "Đồ dùng gia đình",
     slug: "household",
-    keywords: "household",
+    imageKey: "household",
     enumValue: "household",
   },
   {
     name: "Chăm sóc cá nhân",
     slug: "personal-care",
-    keywords: "personal",
+    imageKey: "personal-care",
     enumValue: "personal_care",
   },
   {
     name: "Văn phòng phẩm",
     slug: "stationery",
-    keywords: "stationery",
+    imageKey: "stationery",
     enumValue: "other",
   },
   {
     name: "Điện tử",
     slug: "electronics",
-    keywords: "electronics",
-    enumValue: "other",
-  },
-  {
-    name: "Đồ dùng trẻ em",
-    slug: "baby-products",
-    keywords: "personal",
-    enumValue: "personal_care",
-  },
-  {
-    name: "Thú cưng",
-    slug: "pet-supplies",
-    keywords: "household",
+    imageKey: "electronics",
     enumValue: "other",
   },
   {
     name: "Làm đẹp",
     slug: "beauty",
-    keywords: "personal",
+    imageKey: "beauty",
     enumValue: "personal_care",
   },
-  {
-    name: "Sức khỏe",
-    slug: "health",
-    keywords: "personal",
-    enumValue: "personal_care",
-  },
-  {
-    name: "Đồ tươi mát",
-    slug: "frozen-foods",
-    keywords: "food",
-    enumValue: "grocery",
-  },
 ];
-
-// Tỉnh thành Việt Nam mẫu
-const VIETNAM_PROVINCES = [
-  { id: 1, name: "Hà Nội" },
-  { id: 2, name: "Hồ Chí Minh" },
-  { id: 3, name: "Đà Nẵng" },
-  { id: 4, name: "Hải Phòng" },
-  { id: 5, name: "Cần Thơ" },
-  { id: 6, name: "Bình Dương" },
-  { id: 7, name: "Đồng Nai" },
-  { id: 8, name: "Khánh Hòa" },
-  { id: 9, name: "Lâm Đồng" },
-  { id: 10, name: "Quảng Ninh" },
-];
-
-/**
- * Sinh URL ảnh từ Lorem Flickr (ảnh thật theo keyword)
- * Lorem Flickr tìm ảnh từ Flickr theo keyword, phù hợp với sản phẩm
- */
-function generateImageUrl(keyword, width = 800, height = 600) {
-  // Loại bỏ dấu phẩy và khoảng trắng, chỉ lấy keyword đầu tiên
-  const cleanKeyword = keyword.split(",")[0].trim().replace(/\s+/g, ",");
-  const seed = Math.floor(Math.random() * 10000);
-  // Lorem Flickr: https://loremflickr.com/width/height/keyword
-  return `https://loremflickr.com/${width}/${height}/${cleanKeyword}?random=${seed}`;
-}
-
-/**
- * Sinh URL ảnh từ Picsum (Lorem Picsum)
- */
-function generatePicsumUrl(width = 800, height = 600) {
-  const seed = Math.floor(Math.random() * 10000);
-  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
-}
-
-/**
- * Sinh URL ảnh từ Placeholder.com
- */
-function generatePlaceholderUrl(text, width = 800, height = 600) {
-  return `https://via.placeholder.com/${width}x${height}/3b82f6/ffffff?text=${encodeURIComponent(
-    text
-  )}`;
-}
-
-/**
- * Sinh nhiều ảnh cho sản phẩm
- */
-function generateProductImages(categoryKeywords, count = 3) {
-  const images = [];
-  const keywords = IMAGE_KEYWORDS[categoryKeywords] || ["product"];
-
-  for (let i = 0; i < count; i++) {
-    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
-    images.push(generateImageUrl(keyword, 800, 600));
-  }
-
-  return images;
-}
 
 /**
  * Sinh dữ liệu User
@@ -367,7 +356,7 @@ async function seedUsers() {
   const users = [];
   const hashedPassword = await bcrypt.hash("123456", 10);
 
-  // Tạo admin
+  // Admin
   users.push({
     username: "admin",
     password: hashedPassword,
@@ -378,10 +367,10 @@ async function seedUsers() {
     gender: "Other",
     isVerified: true,
     provider: "local",
-    avatar: generateImageUrl("portrait", 200, 200),
+    avatar: getRandomAvatar(),
   });
 
-  // Tạo users ngẫu nhiên
+  // Regular users
   for (let i = 0; i < CONFIG.users; i++) {
     const gender = faker.helpers.arrayElement(["Male", "Female", "Other"]);
     const firstName = faker.person.firstName(
@@ -406,7 +395,7 @@ async function seedUsers() {
         "github",
         "facebook",
       ]),
-      avatar: generateImageUrl("portrait", 200, 200),
+      avatar: getRandomAvatar(),
     });
   }
 
@@ -423,13 +412,25 @@ async function seedStores() {
   console.log("🌱 Seeding Stores...");
 
   const stores = [];
+  const storeNames = [
+    "Circle K",
+    "Family Mart",
+    "Mini Stop",
+    "7-Eleven",
+    "VinMart+",
+    "GS25",
+    "B's Mart",
+    "Shop & Go",
+  ];
 
   for (let i = 0; i < CONFIG.stores; i++) {
     const province =
       VIETNAM_PROVINCES[Math.floor(Math.random() * VIETNAM_PROVINCES.length)];
+    const storeName =
+      i < storeNames.length ? storeNames[i] : `${faker.company.name()} Mart`;
 
     stores.push({
-      name: `Cửa hàng ${faker.company.name()}`,
+      name: `${storeName} - ${province.name}`,
       address: faker.location.streetAddress(true),
       provinceId: province.id,
       districtId: faker.number.int({ min: 1, max: 20 }),
@@ -444,7 +445,7 @@ async function seedStores() {
 }
 
 /**
- * Cập nhật storeId cho managers
+ * Gán managers cho stores
  */
 async function assignManagersToStores() {
   console.log("🌱 Assigning Managers to Stores...");
@@ -469,7 +470,7 @@ async function assignManagersToStores() {
 async function seedCategories() {
   console.log("🌱 Seeding Categories...");
 
-  const categories = CATEGORY_NAMES.map((cat) => ({
+  const categories = CATEGORY_DATA.map((cat) => ({
     name: cat.name,
     slug: cat.slug,
     description: faker.commerce.productDescription(),
@@ -482,7 +483,7 @@ async function seedCategories() {
 }
 
 /**
- * Sinh dữ liệu Products theo template
+ * Sinh dữ liệu Products
  */
 async function seedProducts() {
   console.log("🌱 Seeding Products...");
@@ -493,21 +494,20 @@ async function seedProducts() {
   let totalProducts = 0;
 
   for (const category of categories) {
-    const catData = CATEGORY_NAMES.find((c) => c.name === category.name);
+    const catData = CATEGORY_DATA.find((c) => c.name === category.name);
+    const imageKey = catData?.imageKey || "product";
     const enumValue = catData?.enumValue || "other";
 
     // Lấy danh sách tên sản phẩm tiếng Việt cho category này
     const productNames = VIETNAMESE_PRODUCTS[enumValue] || [];
 
     for (let i = 0; i < CONFIG.productsPerCategory; i++) {
-      // Sinh số lượng ảnh ngẫu nhiên
       const imageCount = faker.number.int({
         min: CONFIG.minProductImages,
         max: CONFIG.maxProductImages,
       });
 
-      // Dùng enumValue để sinh ảnh phù hợp với category
-      const images = generateProductImages(enumValue, imageCount);
+      const images = getRandomImages(imageKey, imageCount);
       const mainImage = images[0];
 
       // Lấy tên sản phẩm tiếng Việt hoặc random nếu hết
@@ -527,7 +527,6 @@ async function seedProducts() {
         `Nhập khẩu chính ngạch, đầy đủ giấy tờ`,
       ];
 
-      // Tạo ProductTemplate
       const template = await ProductTemplate.create({
         name: productName,
         description: faker.helpers.arrayElement(descriptions),
@@ -537,7 +536,6 @@ async function seedProducts() {
         images: images,
       });
 
-      // Tạo StoreProduct cho mỗi cửa hàng
       for (const store of stores) {
         const quantity = faker.number.int({ min: 10, max: 500 });
         const sold = faker.number.int({
@@ -600,10 +598,9 @@ async function seedOrders() {
       const province =
         VIETNAM_PROVINCES[Math.floor(Math.random() * VIETNAM_PROVINCES.length)];
 
-      // Tạo order
       const order = await Order.create({
         storeId: store.id,
-        studentId: user.id,
+        userId: user.id,
         total_quantity: 0,
         total_price: 0,
         discount: faker.number.float({ min: 0, max: 50000 }),
@@ -643,10 +640,8 @@ async function seedOrders() {
                 "Sản phẩm hết hàng",
               ])
             : null,
-        notes: faker.datatype.boolean(0.3) ? faker.lorem.sentence() : null,
       });
 
-      // Tạo order details
       const itemCount = faker.number.int({ min: 1, max: 5 });
       let totalQuantity = 0;
       let totalPrice = 0;
@@ -673,7 +668,6 @@ async function seedOrders() {
         totalPrice += subtotal;
       }
 
-      // Cập nhật order totals
       const finalPrice = totalPrice - order.discount + order.shipping_fee;
       await order.update({
         total_quantity: totalQuantity,
@@ -695,21 +689,25 @@ async function seedBanners() {
   console.log("🌱 Seeding Banners...");
 
   const banners = [];
+  const bannerTitles = [
+    "Giảm giá 50% toàn bộ sản phẩm",
+    "Khuyến mãi mùa hè 2024",
+    "Mua 1 tặng 1 cho sản phẩm mới",
+    "Miễn phí vận chuyển đơn từ 200k",
+    "Flash Sale 12h trưa mỗi ngày",
+    "Sản phẩm mới về - Giá shock",
+    "Combo tiết kiệm cho gia đình",
+    "Ưu đãi đặc biệt cuối tuần",
+    "Tích điểm đổi quà hấp dẫn",
+    "Chương trình tri ân khách hàng",
+  ];
+
   const positions = ["home_main", "home_secondary", "category_top"];
 
   for (let i = 0; i < CONFIG.banners; i++) {
-    const bannerKeywords = [
-      "sale",
-      "shopping",
-      "store",
-      "market",
-      "supermarket",
-      "promotion",
-    ];
-    const keyword = faker.helpers.arrayElement(bannerKeywords);
     banners.push({
-      title: faker.company.catchPhrase(),
-      image_url: generateImageUrl(keyword, 1200, 400),
+      title: bannerTitles[i] || faker.company.catchPhrase(),
+      image_url: getRandomBanner(),
       link_url: `/products/${faker.lorem.slug()}`,
       position: faker.helpers.arrayElement(positions),
       order_index: i + 1,
@@ -735,12 +733,12 @@ async function seedSiteSettings() {
     },
     {
       key: "site_logo",
-      value: generatePlaceholderUrl("LOGO", 200, 200),
+      value: getRandomBanner(),
       description: "Logo website",
     },
     {
       key: "site_description",
-      value: faker.company.catchPhrase(),
+      value: "Hệ thống cửa hàng tiện lợi hàng đầu Việt Nam",
       description: "Mô tả website",
     },
     {
@@ -755,7 +753,7 @@ async function seedSiteSettings() {
     },
     {
       key: "support_hours",
-      value: "8:00 - 22:00 (Mon-Sun)",
+      value: "8:00 - 22:00 (Thứ 2 - Chủ Nhật)",
       description: "Giờ hỗ trợ",
     },
   ];
@@ -769,9 +767,8 @@ async function seedSiteSettings() {
  */
 async function seedAll() {
   try {
-    console.log("🚀 Starting data seeding...\n");
+    console.log("🚀 Starting data seeding with local images...\n");
 
-    // Xóa dữ liệu cũ (giữ lại Users)
     if (process.argv.includes("--fresh")) {
       console.log("🗑️  Clearing old data (keeping existing users)...");
 
@@ -791,7 +788,6 @@ async function seedAll() {
       console.log("✅ Old data cleared (users preserved)\n");
     }
 
-    // Seed từng bảng
     const existingUsers = await User.count();
     if (existingUsers === 0) {
       console.log("No existing users found, creating new users...");
@@ -827,5 +823,4 @@ async function seedAll() {
   }
 }
 
-// Chạy script
 seedAll();

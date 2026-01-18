@@ -2,50 +2,50 @@
   "footer": {
     "items": [
       {
-        "title": "Danh mục sản phẩm",
+        "title": "Product Categories",
         "list": [
           {
-            "label": "Thực phẩm",
+            "label": "Food",
             "path": "/food"
           },
           {
-            "label": "Đồ uống",
+            "label": "Beverages",
             "path": "/drink"
           },
           {
-            "label": "Gia dụng",
+            "label": "Household",
             "path": "/household"
           },
           {
-            "label": "Cá nhân",
+            "label": "Personal Care",
             "path": "/personal"
           }
         ]
       },
       {
-        "title": "Chăm sóc khách hàng",
+        "title": "Customer Service",
         "list": [
           {
-            "label": "Chính sách bảo mật",
+            "label": "Privacy Policy",
             "path": "/"
           },
           {
-            "label": "Điều khoản và điều kiện",
+            "label": "Terms & Conditions",
             "path": "/"
           },
           {
-            "label": "Chính sách đổi trả",
+            "label": "Return Policy",
             "path": "/"
           },
           {
-            "label": "Hướng dẫn mua hàng",
+            "label": "Shopping Guide",
             "path": "/"
           }
         ]
       },
 
       {
-        "title": "Mạng xã hội",
+        "title": "Social Media",
         "list": [
           {
             "label": "Facebook",

@@ -144,22 +144,22 @@ export const register = async (req, res) => {
       await transporter.sendMail({
         from: `"Convenience Store" <${process.env.USER_MAIL}>`,
         to: email,
-        subject: "Xác thực tài khoản của bạn",
+        subject: "Verify your account",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Xin chào ${name}!</h2>
-            <p>Cảm ơn bạn đã đăng ký tài khoản tại Convenience Store.</p>
-            <p>Mã xác thực OTP của bạn là:</p>
+            <h2 style="color: #333;">Hello ${name}!</h2>
+            <p>Thanks for signing up for a Convenience Store account.</p>
+            <p>Your OTP verification code is:</p>
             <div style="background: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
               ${otp}
             </div>
-            <p style="color: #666;">Mã này sẽ hết hạn sau 1 giờ.</p>
-            <p style="color: #666;">Nếu bạn không thực hiện đăng ký này, vui lòng bỏ qua email này.</p>
+            <p style="color: #666;">This code will expire in 1 hour.</p>
+            <p style="color: #666;">If you did not request this, please ignore this email.</p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
-            <p style="color: #999; font-size: 12px;">Email này được gửi tự động, vui lòng không trả lời.</p>
+            <p style="color: #999; font-size: 12px;">This is an automated email. Please do not reply.</p>
           </div>
         `,
-        text: `Xin chào ${name}! Mã OTP xác thực của bạn là: ${otp}. Mã này sẽ hết hạn sau 1 giờ.`,
+        text: `Hello ${name}! Your OTP verification code is: ${otp}. This code will expire in 1 hour.`,
       });
       console.log(`✅ Verification email sent to ${email}`);
     } catch (emailError) {

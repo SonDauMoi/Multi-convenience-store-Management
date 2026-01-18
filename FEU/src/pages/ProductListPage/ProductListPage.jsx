@@ -3,33 +3,55 @@ import FilterIcon from "../../components/commom/FilterIcon.jsx";
 import PriceFilter from "../../components/Filters/PriceFilter.jsx";
 import ProductCard from "./ProductCard.jsx";
 import { getAllProducts } from "../../api/fetchProducts.js";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setLoading } from "../../store/features/common.jsx";
 import { GrPowerReset } from "react-icons/gr";
 import Pagination from "@mui/material/Pagination";
 import Stack from "@mui/material/Stack";
+import { useParams } from "react-router-dom";
 
 const ProductListPage = ({ category }) => {
   const dispatch = useDispatch();
+  const { categoryKey } = useParams();
+  const categories = useSelector((state) => state.categoryState.categories);
+
+  const resolvedCategoryKey = categoryKey ?? category;
+
+  const selectedCategory = useMemo(() => {
+    if (!resolvedCategoryKey || !Array.isArray(categories)) return null;
+    const key = String(resolvedCategoryKey);
+    return (
+      categories.find((c) => String(c?.id) === key || c?.slug === key) || null
+    );
+  }, [resolvedCategoryKey, categories]);
+
+  const categoryId = useMemo(() => {
+    if (selectedCategory?.id) return selectedCategory.id;
+    if (resolvedCategoryKey && !isNaN(Number(resolvedCategoryKey))) {
+      return Number(resolvedCategoryKey);
+    }
+    return undefined;
+  }, [selectedCategory, resolvedCategoryKey]);
+
+  const formatCategoryFallback = useCallback((value) => {
+    if (!value) return "All products";
+    const words = String(value).replace(/[_-]+/g, " ").trim().split(/\s+/g);
+    return words
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+      .join(" ");
+  }, []);
 
   const [products, setProducts] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 2000000 });
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(null);
+  const [sortBy, setSortBy] = useState("default");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [size] = useState(12);
   const [totalElements, setTotalElements] = useState(0);
 
-  // Category titles in Vietnamese
-  const categoryTitles = {
-    food: "Thực phẩm",
-    drink: "Đồ uống",
-    household: "Gia dụng",
-    personal: "Cá nhân",
-  };
-
-  const categoryTitle = category
-    ? categoryTitles[category] || "Tất cả sản phẩm"
-    : "Tất cả sản phẩm";
+  const categoryTitle =
+    selectedCategory?.name || formatCategoryFallback(resolvedCategoryKey);
 
   // Toggle filter mobile
   const handleFilterToggle = useCallback(
@@ -39,6 +61,8 @@ const ProductListPage = ({ category }) => {
   const handleCloseFilter = useCallback(() => setIsFilterOpen(false), []);
   const handleResetFilters = useCallback(() => {
     setPriceRange({ min: 0, max: 2000000 });
+    setSelectedCategoryFilter(null);
+    setSortBy("default");
   }, []);
 
   const handlePageChange = (event, value) => {
@@ -50,8 +74,12 @@ const ProductListPage = ({ category }) => {
     dispatch(setLoading(true));
     const fetchProducts = async () => {
       try {
+        const effectiveCategoryId = selectedCategoryFilter || categoryId;
         const res = await getAllProducts({
-          category: category || undefined,
+          category: effectiveCategoryId
+            ? undefined
+            : resolvedCategoryKey || undefined,
+          categoryId: effectiveCategoryId,
           page: page - 1,
           size,
         });
@@ -66,20 +94,42 @@ const ProductListPage = ({ category }) => {
     };
 
     fetchProducts();
-  }, [category, page, size, dispatch]);
+  }, [
+    resolvedCategoryKey,
+    categoryId,
+    selectedCategoryFilter,
+    page,
+    size,
+    dispatch,
+  ]);
 
   // Reset page when category changes
   useEffect(() => {
     setPage(1);
-  }, [category]);
+  }, [resolvedCategoryKey, categoryId, selectedCategoryFilter]);
 
-  // Filter by price only (backend handles category)
+  // Filter by price and apply sorting
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    let filtered = products.filter((p) => {
       const priceMatch = p.price >= priceRange.min && p.price <= priceRange.max;
       return priceMatch;
     });
-  }, [products, priceRange]);
+
+    // Apply sorting
+    if (sortBy === "price-asc") {
+      filtered = [...filtered].sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-desc") {
+      filtered = [...filtered].sort((a, b) => b.price - a.price);
+    } else if (sortBy === "name-asc") {
+      filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "name-desc") {
+      filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name));
+    } else if (sortBy === "newest") {
+      filtered = [...filtered].sort((a, b) => b.id - a.id);
+    }
+
+    return filtered;
+  }, [products, priceRange, sortBy]);
 
   const totalPages = Math.ceil(totalElements / size);
 
@@ -98,7 +148,7 @@ const ProductListPage = ({ category }) => {
     `}
     >
       <div className="flex justify-between items-center mb-4">
-        <p className="text-lg font-semibold text-black">Bộ lọc</p>
+        <p className="text-lg font-semibold text-black">Filters</p>
         <div className="flex gap-2">
           <button
             onClick={handleResetFilters}
@@ -120,6 +170,40 @@ const ProductListPage = ({ category }) => {
       </div>
 
       <div className="space-y-6">
+        {/* Category Filter */}
+        <div>
+          <h3 className="text-base font-semibold text-black mb-3">Category</h3>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="category"
+                checked={selectedCategoryFilter === null}
+                onChange={() => setSelectedCategoryFilter(null)}
+                className="w-4 h-4 text-black focus:ring-black"
+              />
+              <span className="text-sm text-gray-700">All categories</span>
+            </label>
+            {Array.isArray(categories) &&
+              categories.map((cat) => (
+                <label
+                  key={cat.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="category"
+                    checked={selectedCategoryFilter === cat.id}
+                    onChange={() => setSelectedCategoryFilter(cat.id)}
+                    className="w-4 h-4 text-black focus:ring-black"
+                  />
+                  <span className="text-sm text-gray-700">{cat.name}</span>
+                </label>
+              ))}
+          </div>
+        </div>
+
+        {/* Price Filter */}
         <div>
           <PriceFilter onChange={setPriceRange} />
         </div>
@@ -150,7 +234,7 @@ const ProductListPage = ({ category }) => {
       return (
         <div className="text-center py-12">
           <p className="text-gray-600 text-lg">
-            Không tìm thấy sản phẩm nào trong danh mục này.
+            No products found in this category.
           </p>
         </div>
       );
@@ -160,7 +244,7 @@ const ProductListPage = ({ category }) => {
       return (
         <div className="text-center py-12">
           <p className="text-gray-600 text-lg">
-            Không tìm thấy sản phẩm nào phù hợp với bộ lọc đã chọn.
+            No products match the selected filters.
           </p>
         </div>
       );
@@ -178,7 +262,7 @@ const ProductListPage = ({ category }) => {
             aria-label="Toggle filters"
           >
             <FilterIcon />
-            <span className="text-sm font-medium text-black">Bộ lọc</span>
+            <span className="text-sm font-medium text-black">Filters</span>
           </button>
         </div>
 
@@ -186,12 +270,37 @@ const ProductListPage = ({ category }) => {
 
         <div className="flex-1 p-4 lg:p-6">
           <div className="mb-6">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-black mb-2">
-              {categoryTitle}
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              Khám phá các sản phẩm {categoryTitle.toLowerCase()} chất lượng cao
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-black mb-2">
+                  {categoryTitle}
+                </h1>
+                <p className="text-sm sm:text-base text-gray-600">
+                  {selectedCategory
+                    ? `Explore high-quality ${categoryTitle.toLowerCase()} products`
+                    : "Explore all products"}
+                </p>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-700 font-medium">
+                  Sort by:
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-black transition-colors"
+                >
+                  <option value="default">Default</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="name-asc">Name: A-Z</option>
+                  <option value="name-desc">Name: Z-A</option>
+                  <option value="newest">Newest First</option>
+                </select>
+              </div>
+            </div>
           </div>
           {renderProductGrid()}
           {renderEmptyState()}

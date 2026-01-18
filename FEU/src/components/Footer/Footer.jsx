@@ -25,12 +25,12 @@ const Footer = ({ content }) => {
             </a>
             <div className="mt-4 md:max-w-xl lg:max-w-sm mx-auto lg:mx-0">
               <p className="text-sm text-gray-700 leading-relaxed">
-                Chuỗi cửa hàng tiện lợi đa địa điểm cung cấp sản phẩm chất lượng
-                từ thực phẩm, đồ uống đến đồ gia dụng.
+                Multi-location convenience store chain providing quality
+                products from food, beverages to household items.
               </p>
               <p className="mt-4 text-sm text-gray-700 leading-relaxed">
-                Cam kết chất lượng, giá cả hợp lý, giao hàng nhanh chóng trong
-                khu vực.
+                Committed to quality, reasonable prices, and fast delivery in
+                the area.
               </p>
             </div>
           </div>
@@ -65,15 +65,9 @@ const Footer = ({ content }) => {
         <div className="flex flex-col justify-between pt-5 pb-10 border-t border-gray-200 sm:flex-row">
           <p className="text-sm text-black">{content?.copyright}</p>
           <div className="flex items-center mt-4 space-x-4 sm:mt-0">
-            <span className="text-sm text-gray-600">Hỗ trợ thanh toán:</span>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-              VNPay
-            </span>
-            <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded text-xs font-medium">
-              Paypal
-            </span>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-              Stripe
+            <span className="text-sm text-gray-600">Payment Support:</span>
+            <span className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium shadow-sm">
+              PayPal
             </span>
           </div>
         </div>

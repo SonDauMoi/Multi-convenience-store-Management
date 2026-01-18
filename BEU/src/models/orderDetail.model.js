@@ -10,8 +10,15 @@ export default (sequelize) => {
         autoIncrement: true,
         primaryKey: true,
       },
-      orderId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      storeProductId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false }, // Reference to store_products table
+      orderId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+      },
+      storeProductId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+        field: "store_product_id",
+      }, // Reference to store_products table
       name: { type: DataTypes.STRING, allowNull: false },
       quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       price: { type: DataTypes.DOUBLE, allowNull: false },

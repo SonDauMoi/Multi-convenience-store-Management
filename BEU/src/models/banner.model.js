@@ -14,8 +14,8 @@ export default (sequelize) => {
         allowNull: false,
       },
       image_url: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: DataTypes.TEXT, // Changed from STRING to TEXT to support long base64 strings or URLs
+        allowNull: true,
       },
       link_url: {
         type: DataTypes.STRING,

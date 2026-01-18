@@ -1,4 +1,8 @@
 // src/controllers/user.controller.js
+// Notes:
+// - User-related operations rely on `req.user` populated by the auth middleware.
+// - Deleting a user also removes related Orders and Cart entries to avoid orphaned data.
+// - Admin-created users are marked `isVerified = true` by default in `createUser`.
 import bcrypt from "bcryptjs";
 import { Op } from "sequelize";
 import { User, Order, Cart } from "../models/index.js";
@@ -128,7 +132,7 @@ export const deleteUser = async (req, res) => {
 
     // Delete the user
     const assignedOrder = await Order.findOne({
-      where: { staffId: id, status: "processing" },
+      where: { managerId: id, status: "processing" },
     });
     if (assignedOrder) {
       return res
@@ -138,7 +142,7 @@ export const deleteUser = async (req, res) => {
 
     // Delete related data
     await Order.destroy({
-      where: { [Op.or]: [{ staffId: id }, { studentId: id }] },
+      where: { [Op.or]: [{ managerId: id }, { userId: id }] },
     });
     await Cart.destroy({ where: { userId: id } });
     await user.destroy();

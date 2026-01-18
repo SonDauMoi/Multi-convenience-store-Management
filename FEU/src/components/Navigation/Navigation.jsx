@@ -1,22 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { FiHome, FiSearch, FiShoppingCart, FiUser } from "react-icons/fi";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  FiHome,
+  FiSearch,
+  FiShoppingCart,
+  FiUser,
+  FiPackage,
+  FiList,
+} from "react-icons/fi";
 import { getAllProducts } from "../../api/fetchProducts";
+import { fetchCategories } from "../../api/fetchCategories";
+import { loadCategories } from "../../store/features/category.jsx";
 import { formatDisplayPrice } from "../../utils/price-format";
 
 const navs = [
-  { to: "/", icon: <FiHome size={22} />, label: "Trang chủ" },
-  { type: "search", icon: <FiSearch size={22} />, label: "Tìm kiếm" },
+  { to: "/", icon: <FiHome size={22} />, label: "Home" },
+  { type: "search", icon: <FiSearch size={22} />, label: "Search" },
   { to: "/cart-items", icon: <FiShoppingCart size={22} />, label: "Cart" },
   {
     to: "/account-details/profile",
     icon: <FiUser size={22} />,
-    label: "Tài khoản",
+    label: "Account",
   },
 ];
 
 const Navigation = () => {
+  const dispatch = useDispatch();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,9 +35,13 @@ const Navigation = () => {
   const searchTimeout = useRef();
   const location = useLocation();
   const navigate = useNavigate();
+
   const cartLength = useSelector((state) =>
     state.cartState.cart.reduce((sum, item) => sum + (item.quantity || 1), 0)
   );
+
+  const userInfo = useSelector((state) => state.userState?.userInfo);
+  const username = userInfo?.name || userInfo?.email?.split("@")[0] || "User";
 
   const navLinkClass = ({ isActive }) =>
     isActive
@@ -53,8 +67,6 @@ const Navigation = () => {
     searchTimeout.current = setTimeout(async () => {
       try {
         const { products } = await getAllProducts({
-          categoryId: null,
-          typeIds: [],
           name: searchTerm,
           page: 0,
           size: 5,
@@ -70,6 +82,17 @@ const Navigation = () => {
 
     return () => clearTimeout(searchTimeout.current);
   }, [searchTerm, searchOpen]);
+
+  useEffect(() => {
+    const load = async () => {
+      const result = await fetchCategories({ page: 0, size: 100 });
+      if (Array.isArray(result) && result.length > 0) {
+        dispatch(loadCategories(result));
+      }
+    };
+
+    load();
+  }, [dispatch]);
 
   return (
     <>
@@ -90,7 +113,7 @@ const Navigation = () => {
                   autoFocus
                   type="text"
                   className="flex-1 bg-transparent outline-none text-lg placeholder-gray-400"
-                  placeholder="Tìm kiếm ..."
+                  placeholder="Search ..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -100,7 +123,7 @@ const Navigation = () => {
                 <div className="absolute left-0 right-0 mt-12 bg-white rounded-xl shadow-lg max-h-80 overflow-y-auto border border-gray-200">
                   {loadingSearch ? (
                     <div className="p-4 text-center text-gray-500">
-                      Đang tìm kiếm...
+                      Searching...
                     </div>
                   ) : searchResults.length > 0 ? (
                     searchResults.slice(0, 5).map((product) => {
@@ -139,7 +162,7 @@ const Navigation = () => {
                     })
                   ) : (
                     <div className="p-4 text-center text-gray-500">
-                      Không tìm thấy sản phẩm phù hợp
+                      No matching products found
                     </div>
                   )}
                 </div>
@@ -149,97 +172,82 @@ const Navigation = () => {
         </div>
       )}
       {/* Top Navigation (Desktop/Tablet) */}
-      <nav className="fixed top-0 left-0 right-0 z-10 hidden lg:flex items-center py-4 px-4 lg:py-6 lg:px-10 xl:px-16 justify-between bg-white border-b border-gray-200">
+      <nav className="fixed top-0 left-0 right-0 z-10 hidden lg:flex items-center py-5 px-6 lg:px-12 xl:px-20 bg-white border-b border-gray-200 shadow-sm">
         {/* Logo */}
-        <div className="flex items-center">
+        <div className="flex items-center mr-8">
           <NavLink to="/" className="flex items-center gap-3">
             <img
               src="/S-store logo.jpg"
               alt="S-Store Logo"
-              className="w-10 h-10 lg:w-12 lg:h-12 object-contain"
+              className="w-14 h-14 object-contain"
               onError={(e) => {
                 e.target.style.display = "none";
               }}
             />
-            <span className="text-2xl lg:text-3xl font-bold text-gray-900">
-              S-Store
-            </span>
+            <span className="text-2xl font-bold text-gray-900">S-Store</span>
           </NavLink>
         </div>
-        {/* Main menu */}
-        <div className="flex flex-wrap items-center">
-          <ul className="flex gap-6 lg:gap-10 xl:gap-14 text-[16px] font-medium">
-            <li>
-              <NavLink to="/food" className={navLinkClass}>
-                Thực phẩm
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/snack" className={navLinkClass}>
-                Đồ ăn vặt
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/drink" className={navLinkClass}>
-                Đồ uống
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/household" className={navLinkClass}>
-                Gia dụng
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/personal" className={navLinkClass}>
-                Chăm sóc cá nhân
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/shops" className={navLinkClass}>
-                Cửa hàng
-              </NavLink>
-            </li>
-          </ul>
+
+        {/* Search Bar */}
+        <div className="flex-1 max-w-xl mr-8">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full flex items-center gap-3 px-5 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
+          >
+            <FiSearch className="h-6 w-6 text-gray-500" />
+            <span className="text-gray-500 text-base">Search product...</span>
+          </button>
         </div>
-        {/* Search and Action Items */}
-        <div className="flex items-center">
-          <ul className="flex gap-6 xl:gap-10 items-center">
-            {/* Search */}
-            <li>
-              <button
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Mở search"
-              >
-                <FiSearch className="h-6 w-6 text-gray-700" />
-              </button>
-            </li>
 
-            {/* Profile */}
-            <li>
-              <button
-                onClick={() => navigate("/account-details/profile")}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <FiUser className="h-6 w-6 text-gray-700" />
-              </button>
-            </li>
+        {/* Main Navigation Items */}
+        <div className="flex items-center gap-10">
+          <NavLink
+            to="/"
+            className="flex items-center gap-2 text-gray-700 hover:text-black transition-colors"
+          >
+            <FiHome className="h-6 w-6" />
+            <span className="text-base font-medium">Home page</span>
+          </NavLink>
 
-            {/* Cart */}
-            <li>
-              <Link
-                to="/cart-items"
-                className="relative flex p-2 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <FiShoppingCart className="h-6 w-6 text-gray-700" />
-                {cartLength > 0 && (
-                  <div className="absolute left-4 -top-2 h-5 w-5 text-xs bg-black text-white rounded-full border-2 border-white flex items-center justify-center">
-                    {cartLength}
-                  </div>
-                )}
-              </Link>
-            </li>
-          </ul>
+          <NavLink
+            to="/all-products"
+            className="flex items-center gap-2 text-gray-700 hover:text-black transition-colors"
+          >
+            <FiPackage className="h-6 w-6" />
+            <span className="text-base font-medium">Product</span>
+          </NavLink>
+
+          <Link
+            to="/cart-items"
+            className="flex items-center gap-2 text-gray-700 hover:text-black transition-colors relative"
+          >
+            <FiShoppingCart className="h-6 w-6" />
+            <span className="text-base font-medium">Cart</span>
+            {cartLength > 0 && (
+              <span className="absolute -top-2 -right-2 h-6 w-6 text-xs bg-black text-white rounded-full flex items-center justify-center">
+                {cartLength}
+              </span>
+            )}
+          </Link>
+
+          <NavLink
+            to="/account-details/orders"
+            className="flex items-center gap-2 text-gray-700 hover:text-black transition-colors"
+          >
+            <FiList className="h-6 w-6" />
+            <span className="text-base font-medium">My orders</span>
+          </NavLink>
+        </div>
+
+        {/* User Profile */}
+        <div className="ml-8">
+          <button
+            onClick={() => navigate("/account-details/profile")}
+            className="flex items-center gap-2 text-gray-700 hover:text-black transition-colors"
+          >
+            <FiUser className="h-7 w-7" />
+            <span className="text-base font-medium">{username}</span>
+          </button>
         </div>
       </nav>
 
@@ -289,7 +297,7 @@ const Navigation = () => {
               <button
                 onClick={() => setMenuOpen(false)}
                 className="absolute top-4 right-4 z-70 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors focus:outline-none"
-                aria-label="Đóng menu"
+                aria-label="Close menu"
               >
                 <svg
                   className="w-7 h-7 text-gray-700"
@@ -329,56 +337,47 @@ const Navigation = () => {
               <ul className="flex flex-col gap-6 px-6 py-6">
                 <li>
                   <NavLink
-                    to="/food"
+                    to="/"
                     className={navLinkClass}
                     onClick={() => setMenuOpen(false)}
                   >
-                    Thực phẩm
+                    Home page
                   </NavLink>
                 </li>
                 <li>
                   <NavLink
-                    to="/snack"
+                    to="/all-products"
                     className={navLinkClass}
                     onClick={() => setMenuOpen(false)}
                   >
-                    Đồ ăn vặt
+                    Product
                   </NavLink>
                 </li>
                 <li>
                   <NavLink
-                    to="/drink"
+                    to="/cart-items"
                     className={navLinkClass}
                     onClick={() => setMenuOpen(false)}
                   >
-                    Đồ uống
+                    Cart
                   </NavLink>
                 </li>
                 <li>
                   <NavLink
-                    to="/household"
-                    onClick={() => setMenuOpen(false)}
+                    to="/account-details/orders"
                     className={navLinkClass}
+                    onClick={() => setMenuOpen(false)}
                   >
-                    Gia dụng
+                    My orders
                   </NavLink>
                 </li>
                 <li>
                   <NavLink
-                    to="/personal"
+                    to="/account-details/profile"
                     className={navLinkClass}
                     onClick={() => setMenuOpen(false)}
                   >
-                    Chăm sóc cá nhân
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/shops"
-                    className={navLinkClass}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Cửa hàng
+                    Profile
                   </NavLink>
                 </li>
               </ul>
@@ -398,7 +397,7 @@ const Navigation = () => {
               className={`flex flex-col items-center justify-center flex-1 h-full ${
                 searchOpen ? "text-black font-semibold" : "text-gray-500"
               }`}
-              aria-label="Mở search"
+              aria-label="Open search"
             >
               <div className="relative">{nav.icon}</div>
             </button>

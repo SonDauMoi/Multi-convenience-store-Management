@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import apiClient from "../../api/apiClient";
 import {
   getAllProductTemplatesAPI,
   createProductTemplateAPI,
@@ -18,20 +19,28 @@ const ProductTemplateManagement = () => {
     name: "",
     description: "",
     price: "",
-    category: "food",
+    categoryId: "",
     image: "",
     images: [],
   });
   const [mainImageFile, setMainImageFile] = useState(null);
   const [detailImageFiles, setDetailImageFiles] = useState([]);
 
-  const categories = [
-    { value: "", label: "Tất cả danh mục" },
-    { value: "food", label: "Đồ ăn" },
-    { value: "drink", label: "Đồ uống" },
-    { value: "household", label: "Đồ gia dụng" },
-    { value: "personal", label: "Đồ dùng cá nhân" },
-  ];
+  const [categoryList, setCategoryList] = useState([]);
+
+  // Load categories for admin selects
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await apiClient.get("/category");
+        setCategoryList(res.data || []);
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+        setCategoryList([]);
+      }
+    };
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     loadTemplates();
@@ -42,12 +51,12 @@ const ProductTemplateManagement = () => {
       setLoading(true);
       const params = {};
       if (searchTerm) params.search = searchTerm;
-      if (categoryFilter) params.category = categoryFilter;
+      if (categoryFilter) params.categoryId = categoryFilter;
       const data = await getAllProductTemplatesAPI(params);
       setTemplates(data.templates || []);
     } catch (error) {
       console.error("Failed to load templates:", error);
-      alert("Không thể tải danh sách sản phẩm");
+      alert("Failed to load product templates");
     } finally {
       setLoading(false);
     }
@@ -60,7 +69,7 @@ const ProductTemplateManagement = () => {
         name: template.name,
         description: template.description || "",
         price: template.price,
-        category: template.category,
+        categoryId: template.categoryId || "",
         image: template.image || "",
         images: template.images || [],
       });
@@ -70,7 +79,7 @@ const ProductTemplateManagement = () => {
         name: "",
         description: "",
         price: "",
-        category: "food",
+        categoryId: "",
         image: "",
         images: [],
       });
@@ -87,7 +96,7 @@ const ProductTemplateManagement = () => {
       name: "",
       description: "",
       price: "",
-      category: "food",
+      categoryId: "",
       image: "",
       images: [],
     });
@@ -152,32 +161,36 @@ const ProductTemplateManagement = () => {
       }
 
       const payload = {
-        ...formData,
+        name: formData.name,
+        description: formData.description,
         price: parseFloat(formData.price),
         image: imageUrl,
         images: imageUrls,
+        categoryId: formData.categoryId
+          ? parseInt(formData.categoryId)
+          : undefined,
       };
 
       if (editingTemplate) {
         await updateProductTemplateAPI(editingTemplate.id, payload);
-        alert("Cập nhật mẫu sản phẩm thành công");
+        alert("Product template updated successfully");
       } else {
         await createProductTemplateAPI(payload);
-        alert("Tạo mẫu sản phẩm thành công");
+        alert("Product template created successfully");
       }
 
       handleCloseModal();
       loadTemplates();
     } catch (error) {
       console.error("Failed to save template:", error);
-      alert(error.response?.data?.message || "Không thể lưu mẫu sản phẩm");
+      alert(error.response?.data?.message || "Unable to save product template");
     }
   };
 
   const handleDelete = async (id) => {
     if (
       !confirm(
-        "Bạn có chắc chắn muốn xóa mẫu sản phẩm này? Sẽ thất bại nếu có cửa hàng đang sử dụng."
+        "Are you sure you want to delete this product template? This will fail if any store is using it."
       )
     ) {
       return;
@@ -185,11 +198,13 @@ const ProductTemplateManagement = () => {
 
     try {
       await deleteProductTemplateAPI(id);
-      alert("Xóa mẫu sản phẩm thành công");
+      alert("Product template deleted successfully");
       loadTemplates();
     } catch (error) {
       console.error("Failed to delete template:", error);
-      alert(error.response?.data?.message || "Không thể xóa mẫu sản phẩm");
+      alert(
+        error.response?.data?.message || "Unable to delete product template"
+      );
     }
   };
 
@@ -202,20 +217,20 @@ const ProductTemplateManagement = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-900">
-          Quản lý Sản phẩm Mẫu ({templates.length})
+          Product Templates Management ({templates.length})
         </h3>
         <button
           onClick={() => handleOpenModal()}
           className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors font-medium"
         >
-          + Tạo Sản phẩm Mẫu
+          + New Product Template
         </button>
       </div>
 
       <div className="flex gap-4 mb-6">
         <input
           type="text"
-          placeholder="Tìm kiếm sản phẩm..."
+          placeholder="Search products..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
@@ -225,9 +240,10 @@ const ProductTemplateManagement = () => {
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
         >
-          {categories.map((cat) => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
+          <option value="">All categories</option>
+          {categoryList.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>
@@ -247,28 +263,28 @@ const ProductTemplateManagement = () => {
                     ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Hình ảnh
+                    Image
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Ảnh chi tiết
+                    Detail Images
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Tên
+                    Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Danh mục
+                    Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Giá
+                    Price
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Mô tả
+                    Description
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Người tạo
+                    Creator
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Hành động
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -279,7 +295,7 @@ const ProductTemplateManagement = () => {
                       colSpan="9"
                       className="px-6 py-8 text-center text-gray-500"
                     >
-                      Không tìm thấy sản phẩm mẫu
+                      No product templates found
                     </td>
                   </tr>
                 ) : (
@@ -297,7 +313,7 @@ const ProductTemplateManagement = () => {
                           />
                         ) : (
                           <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
-                            Không có
+                            N/A
                           </div>
                         )}
                       </td>
@@ -315,9 +331,7 @@ const ProductTemplateManagement = () => {
                                 />
                               ))
                           ) : (
-                            <span className="text-xs text-gray-500">
-                              Không có
-                            </span>
+                            <span className="text-xs text-gray-500">N/A</span>
                           )}
                         </div>
                       </td>
@@ -343,13 +357,13 @@ const ProductTemplateManagement = () => {
                             onClick={() => handleOpenModal(template)}
                             className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors"
                           >
-                            Sửa
+                            Edit
                           </button>
                           <button
                             onClick={() => handleDelete(template.id)}
                             className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
                           >
-                            Xóa
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -368,8 +382,8 @@ const ProductTemplateManagement = () => {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
                 {editingTemplate
-                  ? "Chỉnh sửa Sản phẩm Mẫu"
-                  : "Tạo Sản phẩm Mẫu"}
+                  ? "Edit Product Template"
+                  : "Create Product Template"}
               </h2>
               <button
                 onClick={handleCloseModal}
@@ -393,7 +407,7 @@ const ProductTemplateManagement = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên sản phẩm *
+                  Product Name *
                 </label>
                 <input
                   type="text"
@@ -401,20 +415,20 @@ const ProductTemplateManagement = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  placeholder="Nhập tên sản phẩm"
+                  placeholder="Enter product name"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mô tả
+                  Description
                 </label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="Nhập mô tả sản phẩm"
+                  placeholder="Enter product description"
                   rows="3"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                 />
@@ -422,7 +436,7 @@ const ProductTemplateManagement = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Giá *
+                  Price *
                 </label>
                 <input
                   type="number"
@@ -439,7 +453,7 @@ const ProductTemplateManagement = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Danh mục *
+                  Category *
                 </label>
                 <select
                   name="category"
@@ -460,7 +474,7 @@ const ProductTemplateManagement = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hình ảnh chính *
+                  Main Image *
                 </label>
                 <input
                   type="file"
@@ -479,7 +493,7 @@ const ProductTemplateManagement = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ảnh chi tiết (tối đa 5 ảnh)
+                  Detail Images (up to 5)
                 </label>
                 <input
                   type="file"
@@ -509,7 +523,7 @@ const ProductTemplateManagement = () => {
                   </div>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  Đã chọn: {formData.images.length}/5 ảnh
+                  Selected: {formData.images.length}/5 images
                 </p>
               </div>
 
@@ -519,13 +533,13 @@ const ProductTemplateManagement = () => {
                   onClick={handleCloseModal}
                   className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-colors"
                 >
-                  {editingTemplate ? "Cập nhật" : "Tạo mới"}
+                  {editingTemplate ? "Update" : "Create"}
                 </button>
               </div>
             </form>

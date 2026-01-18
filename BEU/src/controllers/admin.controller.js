@@ -1,5 +1,6 @@
 import {
   Store,
+  Category,
   ProductTemplate,
   StoreProduct,
   Order,
@@ -7,17 +8,25 @@ import {
 } from "../models/index.js";
 import { Op } from "sequelize";
 
+// Admin controller — Key points:
+// - Centralized management of `ProductTemplate` (shared catalog) and store inventories.
+// - Admin endpoints may perform operations that affect multiple stores; manager endpoints
+//   are intentionally restricted to `req.user.storeId`.
+// - Deleting a product template will be prevented if any `StoreProduct` references it.
+// - Revenue/statistics endpoints compute aggregates only over orders with status = 'delivered'.
+
 /**
  * Tạo ProductTemplate mới (Admin hoặc Manager)
  * POST /admin/product-templates
  */
 export const createProductTemplate = async (req, res) => {
   try {
-    const { name, description, image, images, price, category } = req.body;
+    const { name, description, image, images, price, category, categoryId } =
+      req.body;
 
     if (!name || !price) {
       return res.status(400).json({
-        message: "Tên và giá sản phẩm là bắt buộc",
+        message: "Product name and price are required",
       });
     }
 
@@ -25,8 +34,26 @@ export const createProductTemplate = async (req, res) => {
     const existing = await ProductTemplate.findOne({ where: { name } });
     if (existing) {
       return res.status(400).json({
-        message: "Sản phẩm với tên này đã tồn tại",
+        message: "A product with this name already exists",
       });
+    }
+
+    let resolvedCategory = category;
+    let resolvedCategoryId =
+      categoryId !== undefined && categoryId !== null
+        ? parseInt(categoryId)
+        : null;
+
+    // If only category string is provided, try to resolve categoryId by slug
+    if (!resolvedCategoryId && resolvedCategory) {
+      const cat = await Category.findOne({ where: { slug: resolvedCategory } });
+      if (cat) resolvedCategoryId = cat.id;
+    }
+
+    // If only categoryId is provided, try to resolve category slug
+    if (resolvedCategoryId && !resolvedCategory) {
+      const cat = await Category.findByPk(resolvedCategoryId);
+      if (cat?.slug) resolvedCategory = cat.slug;
     }
 
     const productTemplate = await ProductTemplate.create({
@@ -35,18 +62,19 @@ export const createProductTemplate = async (req, res) => {
       image,
       images,
       price,
-      category: category || "household",
+      category: resolvedCategory || "household",
+      categoryId: resolvedCategoryId,
       created_by: req.user.id,
     });
 
     res.status(201).json({
-      message: "Tạo sản phẩm thành công",
+      message: "Product created successfully",
       product: productTemplate,
     });
   } catch (error) {
     console.error("Create product template error:", error);
     res.status(500).json({
-      message: "Lỗi khi tạo sản phẩm",
+      message: "Failed to create product",
       error: error.message,
     });
   }
@@ -58,7 +86,7 @@ export const createProductTemplate = async (req, res) => {
  */
 export const getAllProductTemplates = async (req, res) => {
   try {
-    const { search, category } = req.query;
+    const { search, category, categoryId } = req.query;
 
     const where = {};
     if (search) {
@@ -66,6 +94,9 @@ export const getAllProductTemplates = async (req, res) => {
     }
     if (category) {
       where.category = category;
+    }
+    if (categoryId) {
+      where.categoryId = parseInt(categoryId);
     }
 
     const templates = await ProductTemplate.findAll({
@@ -77,7 +108,7 @@ export const getAllProductTemplates = async (req, res) => {
   } catch (error) {
     console.error("Get product templates error:", error);
     res.status(500).json({
-      message: "Lỗi khi lấy danh sách sản phẩm",
+      message: "Failed to fetch product list",
       error: error.message,
     });
   }
@@ -90,11 +121,37 @@ export const getAllProductTemplates = async (req, res) => {
 export const updateProductTemplate = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, image, images, price, category } = req.body;
+    const { name, description, image, images, price, category, categoryId } =
+      req.body;
 
     const template = await ProductTemplate.findByPk(id);
     if (!template) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    let resolvedCategory = category;
+    let resolvedCategoryId =
+      categoryId !== undefined && categoryId !== null
+        ? parseInt(categoryId)
+        : undefined;
+
+    // If category string provided, resolve categoryId from categories.slug
+    if (
+      (resolvedCategoryId === undefined || Number.isNaN(resolvedCategoryId)) &&
+      resolvedCategory
+    ) {
+      const cat = await Category.findOne({ where: { slug: resolvedCategory } });
+      if (cat) resolvedCategoryId = cat.id;
+    }
+
+    // If categoryId provided, resolve category slug
+    if (
+      resolvedCategoryId !== undefined &&
+      !Number.isNaN(resolvedCategoryId) &&
+      !resolvedCategory
+    ) {
+      const cat = await Category.findByPk(resolvedCategoryId);
+      if (cat?.slug) resolvedCategory = cat.slug;
     }
 
     await template.update({
@@ -104,17 +161,20 @@ export const updateProductTemplate = async (req, res) => {
       image: image !== undefined ? image : template.image,
       images: images !== undefined ? images : template.images,
       price: price !== undefined ? price : template.price,
-      category: category || template.category,
+      category: resolvedCategory || template.category,
+      ...(resolvedCategoryId !== undefined && !Number.isNaN(resolvedCategoryId)
+        ? { categoryId: resolvedCategoryId }
+        : {}),
     });
 
     res.status(200).json({
-      message: "Cập nhật sản phẩm thành công",
+      message: "Product updated successfully",
       product: template,
     });
   } catch (error) {
     console.error("Update product template error:", error);
     res.status(500).json({
-      message: "Lỗi khi cập nhật sản phẩm",
+      message: "Failed to update product",
       error: error.message,
     });
   }
@@ -130,7 +190,7 @@ export const deleteProductTemplate = async (req, res) => {
 
     const template = await ProductTemplate.findByPk(id);
     if (!template) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     // Kiểm tra xem có store nào đang dùng không
@@ -140,16 +200,16 @@ export const deleteProductTemplate = async (req, res) => {
 
     if (storeProducts.length > 0) {
       return res.status(400).json({
-        message: `Không thể xóa. Sản phẩm này đang được sử dụng bởi ${storeProducts.length} cửa hàng`,
+        message: `Cannot delete. This product is being used by ${storeProducts.length} stores`,
       });
     }
 
     await template.destroy();
-    res.status(200).json({ message: "Xóa sản phẩm thành công" });
+    res.status(200).json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error("Delete product template error:", error);
     res.status(500).json({
-      message: "Lỗi khi xóa sản phẩm",
+      message: "Failed to delete product",
       error: error.message,
     });
   }
@@ -166,33 +226,33 @@ export const addProductToStore = async (req, res) => {
 
     if (!productTemplateId || !storeId || !quantity) {
       return res.status(400).json({
-        message: "productTemplateId, storeId và quantity là bắt buộc",
+        message: "productTemplateId, storeId, and quantity are required",
       });
     }
 
     if (quantity <= 0) {
       return res.status(400).json({
-        message: "Số lượng phải lớn hơn 0",
+        message: "Quantity must be greater than 0",
       });
     }
 
     // Manager chỉ được thêm vào store của mình
     if (req.user.role === "manager" && req.user.storeId !== storeId) {
       return res.status(403).json({
-        message: "Bạn chỉ có thể thêm sản phẩm vào cửa hàng của mình",
+        message: "You can only add products to your own store",
       });
     }
 
     // Kiểm tra store tồn tại
     const store = await Store.findByPk(storeId);
     if (!store) {
-      return res.status(404).json({ message: "Không tìm thấy cửa hàng" });
+      return res.status(404).json({ message: "Store not found" });
     }
 
     // Kiểm tra product template tồn tại
     const template = await ProductTemplate.findByPk(productTemplateId);
     if (!template) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     // Kiểm tra đã có trong store chưa
@@ -227,13 +287,13 @@ export const addProductToStore = async (req, res) => {
     });
 
     res.status(200).json({
-      message: "Thêm sản phẩm vào kho thành công",
+      message: "Product added to store inventory successfully",
       storeProduct: result,
     });
   } catch (error) {
     console.error("Add product to store error:", error);
     res.status(500).json({
-      message: "Lỗi khi thêm sản phẩm vào kho",
+      message: "Failed to add product to inventory",
       error: error.message,
     });
   }
@@ -257,7 +317,7 @@ export const getStoreInventory = async (req, res) => {
 
     if (!finalStoreId) {
       return res.status(400).json({
-        message: "storeId là bắt buộc",
+        message: "storeId is required",
       });
     }
 
@@ -274,7 +334,7 @@ export const getStoreInventory = async (req, res) => {
   } catch (error) {
     console.error("Get store inventory error:", error);
     res.status(500).json({
-      message: "Lỗi khi lấy danh sách kho",
+      message: "Failed to fetch inventory list",
       error: error.message,
     });
   }
@@ -306,7 +366,7 @@ export const getAllProductsAdmin = async (req, res) => {
   } catch (error) {
     console.error("Get all products error:", error);
     res.status(500).json({
-      message: "Lỗi khi lấy danh sách sản phẩm",
+      message: "Failed to fetch product list",
       error: error.message,
     });
   }
@@ -323,7 +383,7 @@ export const updateStoreProductQuantity = async (req, res) => {
 
     if (quantity === undefined || quantity < 0) {
       return res.status(400).json({
-        message: "Số lượng không hợp lệ",
+        message: "Invalid quantity",
       });
     }
 
@@ -334,7 +394,7 @@ export const updateStoreProductQuantity = async (req, res) => {
     if (!storeProduct) {
       return res
         .status(404)
-        .json({ message: "Không tìm thấy sản phẩm trong kho" });
+        .json({ message: "Product not found in inventory" });
     }
 
     // Nếu là manager, chỉ được cập nhật products của store mình
@@ -343,7 +403,7 @@ export const updateStoreProductQuantity = async (req, res) => {
       storeProduct.store_id !== req.user.storeId
     ) {
       return res.status(403).json({
-        message: "Không có quyền cập nhật sản phẩm này",
+        message: "You are not allowed to update this product",
       });
     }
 
@@ -359,13 +419,13 @@ export const updateStoreProductQuantity = async (req, res) => {
     });
 
     res.status(200).json({
-      message: "Cập nhật số lượng thành công",
+      message: "Quantity updated successfully",
       storeProduct: result,
     });
   } catch (error) {
     console.error("Update quantity error:", error);
     res.status(500).json({
-      message: "Lỗi khi cập nhật số lượng",
+      message: "Failed to update quantity",
       error: error.message,
     });
   }
@@ -402,7 +462,7 @@ export const getStoreRevenue = async (req, res) => {
           attributes: ["id", "name", "address"],
         },
         {
-          model: OrderDetail,
+          association: "orderDetails",
           attributes: ["quantity", "price"],
         },
       ],
@@ -452,7 +512,7 @@ export const getStoreRevenue = async (req, res) => {
   } catch (error) {
     console.error("Get store revenue error:", error);
     res.status(500).json({
-      message: "Lỗi khi lấy doanh số",
+      message: "Failed to fetch revenue",
       error: error.message,
     });
   }

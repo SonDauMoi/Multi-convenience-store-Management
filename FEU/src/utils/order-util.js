@@ -1,7 +1,15 @@
-export const createOrderRequest = (cartItems, userId, addressId) => {
-  // Lấy storeId từ sản phẩm đầu tiên (giả sử tất cả sản phẩm cùng store)
-  // Fallback to 1 if storeId không tồn tại
-  const storeId = cartItems[0]?.storeId || 1;
+export const createOrderRequest = (cartItems) => {
+  const storeIds = Array.from(
+    new Set((cartItems || []).map((item) => Number(item?.storeId || 1)))
+  );
+
+  if (storeIds.length > 1) {
+    throw new Error(
+      "Your cart contains items from multiple stores. Please use the Checkout page so the system can split orders and calculate shipping fees per store."
+    );
+  }
+
+  const storeId = storeIds[0] || 1;
 
   const items = cartItems.map((item) => ({
     productId: item.productId,

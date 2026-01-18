@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import App from "./App";
 import LayoutShop from "./pages/Layout.jsx";
 import ProductListPage from "./pages/ProductListPage/ProductListPage.jsx";
@@ -15,7 +15,6 @@ import Checkout from "./pages/Checkout/Checkout.jsx";
 import OrderConfirmed from "./pages/OrderComfirmed/OrderComfirmed.jsx";
 import Profile from "./pages/Account/Profile.jsx";
 import Orders from "./pages/Account/Orders.jsx";
-import AdminPanel from "./pages/AdminPanel/AdminPanel.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
 import ManagerDashboard from "./pages/Manager/ManagerDashboard.jsx";
 import ManagerOrders from "./pages/Manager/ManagerOrders.jsx";
@@ -24,12 +23,14 @@ import Logouts from "./pages/Account/Logouts.jsx";
 import StripeReturnHandler from "./pages/StripeReturnHandler/StripeReturnHandler.jsx";
 import PayPalReturnHandler from "./pages/PayPalReturnHandler/PayPalReturnHandler.jsx";
 import Page403 from "./components/Page403.jsx";
-import BannerManagement from "./pages/Admin/BannerManagement.jsx";
-import ProductTemplateManagement from "./pages/Admin/ProductTemplateManagement.jsx";
-import InventoryManagement from "./pages/Admin/InventoryManagement.jsx";
-import StoreRevenueAnalytics from "./pages/Admin/StoreRevenueAnalytics.jsx";
 
+/**
+ * Hệ thống định tuyến (Routing) chính của ứng dụng.
+ * Phân chia rõ ràng giữa các trang công khai (Shop), 
+ * trang xác thực (Login/Register) và các trang quản trị (Admin/Manager).
+ */
 export const router = createBrowserRouter([
+  // --- NHÓM ROUTE CỬA HÀNG (PUBLIC & CUSTOMER) ---
   {
     path: "/",
     element: <LayoutShop />,
@@ -39,28 +40,12 @@ export const router = createBrowserRouter([
         element: <App />,
       },
       {
-        path: "food",
-        element: <ProductListPage category="grocery" />,
-      },
-      {
-        path: "snack",
-        element: <ProductListPage category="snack" />,
-      },
-      {
-        path: "drink",
-        element: <ProductListPage category="beverage" />,
-      },
-      {
-        path: "household",
-        element: <ProductListPage category="household" />,
-      },
-      {
-        path: "personal",
-        element: <ProductListPage category="personal_care" />,
-      },
-      {
         path: "all-products",
         element: <ProductListPage />,
+      },
+      {
+        path: "category/:categoryKey",
+        element: <Navigate to="/all-products" replace />,
       },
       {
         path: "product/:productSlug",
@@ -85,27 +70,15 @@ export const router = createBrowserRouter([
         children: [
           {
             path: "profile",
-            element: (
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            ),
+            element: <ProtectedRoute><Profile /></ProtectedRoute>,
           },
           {
             path: "orders",
-            element: (
-              <ProtectedRoute>
-                <Orders />
-              </ProtectedRoute>
-            ),
+            element: <ProtectedRoute><Orders /></ProtectedRoute>,
           },
           {
             path: "logout",
-            element: (
-              <ProtectedRoute>
-                <Logouts />
-              </ProtectedRoute>
-            ),
+            element: <ProtectedRoute><Logouts /></ProtectedRoute>,
           },
         ],
       },
@@ -123,32 +96,23 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
+  // --- NHÓM ROUTE XÁC THỰC (AUTH) ---
   {
     path: "/v1/",
     element: <AutheticationWrapper />,
     children: [
-      {
-        path: "login",
-        element: <Login />,
-      },
-      {
-        path: "register",
-        element: <Register />,
-      },
+      { path: "login", element: <Login /> },
+      { path: "register", element: <Register /> },
     ],
   },
-  {
-    path: "/oauth2/callback",
-    element: <OAuth2loginCallback />,
-  },
-  {
-    path: "/payment/stripe-success",
-    element: <StripeReturnHandler />,
-  },
-  {
-    path: "/payment/paypal-success",
-    element: <PayPalReturnHandler />,
-  },
+  { path: "/oauth2/callback", element: <OAuth2loginCallback /> },
+
+  // --- XỬ LÝ THANH TOÁN QUỐC TẾ ---
+  { path: "/payment/stripe-success", element: <StripeReturnHandler /> },
+  { path: "/payment/paypal-success", element: <PayPalReturnHandler /> },
+
+  // --- NHÓM ROUTE QUẢN TRỊ (ADMIN) ---
   {
     path: "/admin",
     element: (
@@ -157,30 +121,8 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  {
-    path: "/admin/banners",
-    element: (
-      <ProtectedRoute requiredRole="admin">
-        <BannerManagement />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/admin/product-templates",
-    element: (
-      <ProtectedRoute requiredRole="admin">
-        <ProductTemplateManagement />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/admin/revenue",
-    element: (
-      <ProtectedRoute requiredRole="admin">
-        <StoreRevenueAnalytics />
-      </ProtectedRoute>
-    ),
-  },
+
+  // --- NHÓM ROUTE QUẢN LÝ CỬA HÀNG (MANAGER) ---
   {
     path: "/manager",
     element: (
@@ -190,26 +132,10 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: "/manager/orders",
+    path: "/manager/orders/:id", // Chi tiết đơn hàng cho manager
     element: (
       <ProtectedRoute requiredRole="manager">
         <ManagerOrders />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/manager/inventory",
-    element: (
-      <ProtectedRoute requiredRole="manager">
-        <InventoryManagement />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/manager/*",
-    element: (
-      <ProtectedRoute requiredRole="manager">
-        <AdminPanel />
       </ProtectedRoute>
     ),
   },

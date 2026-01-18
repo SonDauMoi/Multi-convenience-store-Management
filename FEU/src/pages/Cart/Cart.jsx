@@ -15,12 +15,12 @@ import { formatDisplayPrice } from "../../utils/price-format";
 import { FaRegTrashCan } from "react-icons/fa6";
 
 const headers = [
-  "Sản phẩm",
-  "Giá",
-  "Số lượng",
-  "Vận chuyển",
-  "Tạm tính",
-  "Xóa",
+  "Product",
+  "Price",
+  "Quantity",
+  "Shipping",
+  "Subtotal",
+  "Remove",
 ];
 
 const Cart = () => {
@@ -77,7 +77,7 @@ const Cart = () => {
     <div className="p-4 max-w-7xl mx-auto">
       {cartItems?.length > 0 ? (
         <>
-          <h1 className="text-2xl font-bold mb-6">Giỏ hàng của bạn</h1>
+          <h1 className="text-2xl font-bold mb-6">Your cart</h1>
           <div className="overflow-x-auto shadow-lg rounded-lg bg-white">
             <table className="w-full text-base">
               <thead className="bg-gray-700 text-white uppercase">
@@ -105,7 +105,9 @@ const Cart = () => {
                         <div className="ml-4 text-gray-700">
                           <p className="font-semibold">{item?.name}</p>
                           <p className="text-sm">Size: {item?.variant?.size}</p>
-                          <p className="text-sm">Màu: {item?.variant?.color}</p>
+                          <p className="text-sm">
+                            Color: {item?.variant?.color}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -127,9 +129,7 @@ const Cart = () => {
                         }
                       />
                     </td>
-                    <td className="px-6 py-4 text-black font-medium">
-                      Miễn phí
-                    </td>
+                    <td className="px-6 py-4 text-black font-medium">Free</td>
                     <td className="px-6 py-4">
                       {formatDisplayPrice(item?.subTotal)}
                     </td>
@@ -152,18 +152,18 @@ const Cart = () => {
           <div className="flex flex-col md:flex-row justify-between mt-8 gap-6">
             {/* Mã giảm giá */}
             <div className="bg-white p-6 rounded-lg shadow w-full md:w-1/2">
-              <h2 className="text-lg font-bold mb-2"> Mã giảm giá</h2>
+              <h2 className="text-lg font-bold mb-2">Discount Code</h2>
               <p className="text-sm text-gray-500 mb-4">
-                Nhập mã giảm giá của bạn
+                Enter your discount code
               </p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-black"
-                  placeholder="Nhập mã"
+                  placeholder="Enter code"
                 />
                 <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition">
-                  Áp dụng
+                  Apply
                 </button>
               </div>
             </div>
@@ -171,15 +171,15 @@ const Cart = () => {
             {/* Tổng tiền */}
             <div className="bg-white p-6 rounded-lg shadow w-full md:w-1/2">
               <div className="flex justify-between text-lg mb-2">
-                <span>Tạm tính:</span>
+                <span>Subtotal:</span>
                 <span>{formatDisplayPrice(subTotal)}</span>
               </div>
               <div className="flex justify-between text-lg mb-2">
-                <span>Vận chuyển:</span>
+                <span>Shipping:</span>
                 <span>{formatDisplayPrice(0)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold border-t pt-2">
-                <span>Tổng cộng:</span>
+                <span>Total:</span>
                 <span>{formatDisplayPrice(subTotal)}</span>
               </div>
 
@@ -187,7 +187,7 @@ const Cart = () => {
                 className="w-full mt-4 bg-black text-white py-3 rounded-lg text-lg hover:bg-gray-800 transition"
                 onClick={() => navigate("/checkout")}
               >
-                Thanh toán ngay
+                Proceed to checkout
               </button>
             </div>
           </div>
@@ -197,21 +197,21 @@ const Cart = () => {
             isOpen={modalIsOpen}
             onRequestClose={onCloseModal}
             style={customStyles}
-            contentLabel="Xác nhận xóa"
+            contentLabel="Confirm deletion"
           >
-            <p>Bạn có chắc chắn muốn xóa sản phẩm này không?</p>
+            <p>Are you sure you want to remove this item?</p>
             <div className="flex justify-between p-4">
               <button
                 className="h-[40px] px-4 border rounded-lg"
                 onClick={onCloseModal}
               >
-                Hủy bỏ
+                Cancel
               </button>
               <button
                 className="bg-black text-white px-4 h-[40px] rounded-lg hover:bg-gray-800"
                 onClick={onDeleteItem}
               >
-                Xóa
+                Delete
               </button>
             </div>
           </Modal>
@@ -225,12 +225,12 @@ const Cart = () => {
               alt="empty-cart"
             />
           </div>
-          <p className="text-2xl font-bold">Giỏ hàng trống!</p>
+          <p className="text-2xl font-bold">Your cart is empty!</p>
           <Link
-            to="/men"
+            to="/all-products"
             className="inline-block mt-4 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition"
           >
-            Tiếp tục mua sắm
+            Continue shopping
           </Link>
         </div>
       )}

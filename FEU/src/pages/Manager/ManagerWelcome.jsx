@@ -20,8 +20,8 @@ const ManagerWelcome = () => {
     setModalState({
       isOpen: true,
       type: "warning",
-      title: "Xác nhận đăng xuất",
-      message: "Bạn có chắc chắn muốn đăng xuất?",
+      title: "Confirm Logout",
+      message: "Are you sure you want to logout?",
       onConfirm: async () => {
         await logoutAPI();
         navigate("/v1/login");
@@ -56,7 +56,7 @@ const ManagerWelcome = () => {
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
             >
-              Đăng xuất
+              Logout
             </button>
           </div>
         </div>
@@ -82,10 +82,10 @@ const ManagerWelcome = () => {
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Chào mừng, {userInfo?.name || "Manager"}!
+              Welcome, {userInfo?.name || "Manager"}!
             </h2>
             <p className="text-gray-600 text-lg">
-              Bạn đang quản lý cửa hàng #{userInfo?.storeId || "N/A"}
+              You are managing store #{userInfo?.storeId || "N/A"}
             </p>
           </div>
 
@@ -93,7 +93,7 @@ const ManagerWelcome = () => {
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-blue-900">
-                  Quản lý sản phẩm
+                  Manage Products
                 </h3>
                 <svg
                   className="w-8 h-8 text-blue-600"
@@ -110,14 +110,14 @@ const ManagerWelcome = () => {
                 </svg>
               </div>
               <p className="text-blue-700 text-sm">
-                Thêm, sửa, xóa sản phẩm trong cửa hàng của bạn
+                Add, edit, and remove products in your store
               </p>
             </div>
 
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-green-900">
-                  Quản lý đơn hàng
+                  Manage Orders
                 </h3>
                 <svg
                   className="w-8 h-8 text-green-600"
@@ -134,14 +134,14 @@ const ManagerWelcome = () => {
                 </svg>
               </div>
               <p className="text-green-700 text-sm">
-                Xem và xử lý đơn hàng của khách hàng
+                View and process customer orders
               </p>
             </div>
 
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-purple-900">
-                  Thống kê
+                  Analytics
                 </h3>
                 <svg
                   className="w-8 h-8 text-purple-600"
@@ -158,7 +158,7 @@ const ManagerWelcome = () => {
                 </svg>
               </div>
               <p className="text-purple-700 text-sm">
-                Xem báo cáo và phân tích dữ liệu
+                View reports and analyze data
               </p>
             </div>
           </div>
@@ -168,10 +168,10 @@ const ManagerWelcome = () => {
               onClick={handleGoToPanel}
               className="px-8 py-4 bg-gradient-to-r from-[#0A68FE] to-[#0052CC] hover:from-[#0052CC] hover:to-[#003d99] text-white font-semibold rounded-xl shadow-lg transition-all transform hover:scale-105"
             >
-              Vào trang quản lý →
+              Open Management →
             </button>
             <p className="mt-4 text-sm text-gray-500">
-              Hoặc chọn một trong các tính năng ở trên
+              Or choose one of the features above
             </p>
           </div>
         </div>
@@ -180,7 +180,7 @@ const ManagerWelcome = () => {
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              Thông tin cá nhân
+              Profile Information
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -190,13 +190,13 @@ const ManagerWelcome = () => {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Tên:</span>
+                <span className="text-gray-600">Full Name:</span>
                 <span className="font-medium text-gray-900">
                   {userInfo?.name}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Vai trò:</span>
+                <span className="text-gray-600">Role:</span>
                 <span className="font-medium text-green-600">Manager</span>
               </div>
               <div className="flex justify-between">
@@ -209,7 +209,7 @@ const ManagerWelcome = () => {
           </div>
 
           <div className="bg-gradient-to-r from-[#0A68FE] to-[#0052CC] rounded-xl shadow-md p-6 text-white">
-            <h3 className="text-lg font-semibold mb-3">Hỗ trợ nhanh</h3>
+            <h3 className="text-lg font-semibold mb-3">Quick Support</h3>
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <svg
@@ -225,7 +225,7 @@ const ManagerWelcome = () => {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span>Hướng dẫn sử dụng</span>
+                <span>User Guide</span>
               </li>
               <li className="flex items-center gap-2">
                 <svg
@@ -241,7 +241,7 @@ const ManagerWelcome = () => {
                     d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
                   />
                 </svg>
-                <span>Liên hệ hỗ trợ</span>
+                <span>Contact Support</span>
               </li>
               <li className="flex items-center gap-2">
                 <svg
@@ -257,7 +257,7 @@ const ManagerWelcome = () => {
                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <span>Câu hỏi thường gặp</span>
+                <span>FAQ</span>
               </li>
             </ul>
           </div>

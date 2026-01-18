@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserInfo } from "../../utils/jwt-helper";
-import { logoutAPI } from "../../api/authencation";
 import { getProfileAPI } from "../../api/authencation";
 import { uploadAvatarAPI } from "../../api/userInfo";
 import axios from "axios";
@@ -48,12 +47,6 @@ const Profile = () => {
     }
   };
 
-  const handleLogout = async () => {
-    if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-      await logoutAPI();
-    }
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -82,7 +75,7 @@ const Profile = () => {
         }
       );
 
-      setMessage({ type: "success", text: "Cập nhật thông tin thành công!" });
+      setMessage({ type: "success", text: "Profile updated successfully!" });
       setIsEditing(false);
       await fetchUserProfile();
 
@@ -90,7 +83,7 @@ const Profile = () => {
     } catch (error) {
       setMessage({
         type: "error",
-        text: error.response?.data?.message || "Cập nhật thất bại!",
+        text: error.response?.data?.message || "Update failed!",
       });
     } finally {
       setSaveLoading(false);
@@ -113,13 +106,13 @@ const Profile = () => {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      setMessage({ type: "error", text: "Vui lòng chọn file ảnh!" });
+      setMessage({ type: "error", text: "Please select an image file!" });
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: "error", text: "Ảnh không được vượt quá 5MB!" });
+      setMessage({ type: "error", text: "Image must not exceed 5MB!" });
       return;
     }
 
@@ -142,13 +135,13 @@ const Profile = () => {
             }
           );
 
-          setMessage({ type: "success", text: "Cập nhật avatar thành công!" });
+          setMessage({ type: "success", text: "Avatar updated successfully!" });
           await fetchUserProfile();
           setTimeout(() => setMessage({ type: "", text: "" }), 3000);
         } catch (error) {
           setMessage({
             type: "error",
-            text: error.response?.data?.message || "Cập nhật avatar thất bại!",
+            text: error.response?.data?.message || "Failed to update avatar!",
           });
         } finally {
           setUploadingAvatar(false);
@@ -157,14 +150,14 @@ const Profile = () => {
       reader.readAsDataURL(file);
     } catch (error) {
       setUploadingAvatar(false);
-      setMessage({ type: "error", text: "Đã xảy ra lỗi!" });
+      setMessage({ type: "error", text: "An error occurred!" });
     }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0A68FE]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div>
       </div>
     );
   }
@@ -174,7 +167,7 @@ const Profile = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header Card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="bg-gradient-to-r from-[#0A68FE] to-[#0052CC] h-32"></div>
+          <div className="bg-gradient-to-r from-gray-900 via-purple-900 to-black h-32"></div>
           <div className="px-6 pb-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-12 gap-4">
               {/* Avatar */}
@@ -187,7 +180,7 @@ const Profile = () => {
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-[#0A68FE] to-[#0052CC] flex items-center justify-center">
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center">
                       <span className="text-white text-3xl sm:text-4xl font-bold">
                         {user?.name?.charAt(0).toUpperCase() || "U"}
                       </span>
@@ -236,7 +229,7 @@ const Profile = () => {
               {/* Name and Role */}
               <div className="mt-4 sm:mt-0 text-center sm:text-left flex-1">
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                  {user?.name || "Người dùng"}
+                  {user?.name || "User"}
                 </h1>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
                   <svg
@@ -252,32 +245,11 @@ const Profile = () => {
                       d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                     />
                   </svg>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-[#0A68FE] capitalize">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-800 text-white capitalize">
                     {user?.role || "user"}
                   </span>
                 </div>
               </div>
-
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-md"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-                <span className="font-medium">Đăng xuất</span>
-              </button>
             </div>
           </div>
         </div>
@@ -299,12 +271,12 @@ const Profile = () => {
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">
-              Thông tin cá nhân
+              Personal Information
             </h2>
             {!isEditing ? (
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 text-[#0A68FE] hover:bg-blue-50 rounded-lg transition-colors border border-[#0A68FE]"
+                className="flex items-center gap-2 px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-lg transition-colors border border-gray-800"
               >
                 <svg
                   className="w-4 h-4"
@@ -319,7 +291,7 @@ const Profile = () => {
                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                   />
                 </svg>
-                <span className="text-sm font-medium">Chỉnh sửa</span>
+                <span className="text-sm font-medium">Edit</span>
               </button>
             ) : (
               <div className="flex gap-2">
@@ -328,20 +300,20 @@ const Profile = () => {
                   disabled={saveLoading}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300 disabled:opacity-50"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saveLoading}
-                  className="px-4 py-2 bg-[#0A68FE] hover:bg-[#0052CC] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {saveLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Đang lưu...
+                      Saving...
                     </>
                   ) : (
-                    "Lưu thay đổi"
+                    "Save Changes"
                   )}
                 </button>
               </div>
@@ -353,7 +325,7 @@ const Profile = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <svg
-                  className="w-5 h-5 text-[#0A68FE]"
+                  className="w-5 h-5 text-gray-800"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -365,7 +337,7 @@ const Profile = () => {
                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                   />
                 </svg>
-                Tên đăng nhập
+                Username
               </label>
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <p className="text-gray-900">{user?.username}</p>
@@ -376,7 +348,7 @@ const Profile = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <svg
-                  className="w-5 h-5 text-[#0A68FE]"
+                  className="w-5 h-5 text-gray-800"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -388,7 +360,7 @@ const Profile = () => {
                     d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Họ và tên
+                Full Name
               </label>
               {isEditing ? (
                 <input
@@ -396,14 +368,12 @@ const Profile = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0A68FE] focus:border-transparent"
-                  placeholder="Nhập họ và tên"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+                  placeholder="Enter full name"
                 />
               ) : (
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-gray-900">
-                    {user?.name || "Chưa cập nhật"}
-                  </p>
+                  <p className="text-gray-900">{user?.name || "Not updated"}</p>
                 </div>
               )}
             </div>
@@ -412,7 +382,7 @@ const Profile = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <svg
-                  className="w-5 h-5 text-[#0A68FE]"
+                  className="w-5 h-5 text-gray-800"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -432,13 +402,13 @@ const Profile = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0A68FE] focus:border-transparent"
-                  placeholder="Nhập email"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+                  placeholder="Enter email"
                 />
               ) : (
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-gray-900 break-all">
-                    {user?.email || "Chưa cập nhật"}
+                    {user?.email || "Not updated"}
                   </p>
                 </div>
               )}
@@ -448,7 +418,7 @@ const Profile = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <svg
-                  className="w-5 h-5 text-[#0A68FE]"
+                  className="w-5 h-5 text-gray-800"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -460,7 +430,7 @@ const Profile = () => {
                     d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                   />
                 </svg>
-                Số điện thoại
+                Phone Number
               </label>
               {isEditing ? (
                 <input
@@ -468,13 +438,13 @@ const Profile = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0A68FE] focus:border-transparent"
-                  placeholder="Nhập số điện thoại"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+                  placeholder="Enter phone number"
                 />
               ) : (
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-gray-900">
-                    {user?.phone || "Chưa cập nhật"}
+                    {user?.phone || "Not updated"}
                   </p>
                 </div>
               )}
@@ -485,7 +455,7 @@ const Profile = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <svg
-                    className="w-5 h-5 text-[#0A68FE]"
+                    className="w-5 h-5 text-gray-800"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -497,36 +467,13 @@ const Profile = () => {
                       d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                     />
                   </svg>
-                  Cửa hàng
+                  Store
                 </label>
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-gray-900">Store #{user.storeId}</p>
                 </div>
               </div>
             )}
-
-            {/* User ID */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <svg
-                  className="w-5 h-5 text-[#0A68FE]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
-                  />
-                </svg>
-                ID người dùng
-              </label>
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-gray-900">#{user?.id}</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>

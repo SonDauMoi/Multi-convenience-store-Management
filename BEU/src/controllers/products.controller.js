@@ -1,15 +1,43 @@
 import { ProductTemplate, StoreProduct, Store } from "../models/index.js";
 import { Op } from "sequelize";
+import { sequelize } from "../config/database.js";
+
+// Products controller — Notes:
+// - This controller operates on `ProductTemplate` which is the shared product catalog
+//   (canonical product definitions used across stores).
+// - Per-store inventory (quantity, in_stock) is stored in `StoreProduct` and
+//   exposed via store-specific endpoints (`storeProduct.controller.js`).
+// - Some endpoints here are deprecated in favor of admin routes that manage
+//   product templates centrally. Keep this separation in mind when tracing bugs.
 
 // For all users to view products (from ProductTemplate)
 export const getAllProducts = async (req, res) => {
   try {
-    const { category, name, slug, id, page = 0, size = 12 } = req.query;
+    const {
+      category,
+      categoryId,
+      name,
+      slug,
+      id,
+      page = 0,
+      size = 12,
+    } = req.query;
     const offset = parseInt(page) * parseInt(size);
 
     const where = {};
-    if (category) where.category = category;
-    if (name) where.name = { [Op.like]: `%${name}%` };
+    // Skip category filter if it's "all", "other", or undefined
+    if (category && category !== "all" && category !== "other") {
+      where.category = category;
+    }
+    if (categoryId) where.categoryId = parseInt(categoryId);
+    if (name) {
+      // Use ILIKE for case-insensitive search in PostgreSQL
+      where.name = sequelize.where(
+        sequelize.fn("LOWER", sequelize.col("name")),
+        Op.like,
+        `%${name.toLowerCase()}%`
+      );
+    }
 
     // If id is provided, search by exact ID (for single product queries)
     if (id) {

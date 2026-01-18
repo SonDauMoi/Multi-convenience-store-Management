@@ -211,15 +211,15 @@ const Orders = () => {
       {orders.length > 0 && (
         <div className="max-w-5xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Đơn hàng của tôi</h1>
+            <h1 className="text-2xl font-bold">My Orders</h1>
             <select
               className="border border-gray-300 rounded px-4 py-2"
               value={selectedFilter}
               onChange={handleOnChange}
             >
-              <option value="ACTIVE">Đang xử lý</option>
-              <option value="CANCELLED">Đã huỷ</option>
-              <option value="COMPLETED">Hoàn thành</option>
+              <option value="ACTIVE">Active</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="COMPLETED">Completed</option>
             </select>
           </div>
 
@@ -232,13 +232,14 @@ const Orders = () => {
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <p className="text-lg font-semibold text-gray-800">
-                      Đơn hàng:{" "}
+                      Order:{" "}
                       <span className="text-blue-700 font-bold">
                         #{order.orderDisplayCode || order.id}
                       </span>
                     </p>
                     <p className="text-sm text-gray-500">
-                      Ngày đặt: {moment(order?.orderDate).format("DD/MM/YYYY")}
+                      Order Date:{" "}
+                      {moment(order?.orderDate).format("DD/MM/YYYY")}
                     </p>
                   </div>
                   <div className="text-right">

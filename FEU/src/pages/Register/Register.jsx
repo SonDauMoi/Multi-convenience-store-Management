@@ -48,7 +48,7 @@ const Register = () => {
         const errorMessage =
           error.response?.data?.message ||
           error.message ||
-          "Email hoặc tên đăng nhập đã tồn tại!";
+          "Email or username already exists!";
         setApiError(errorMessage);
       } finally {
         dispatch(setLoading(false));
@@ -63,9 +63,9 @@ const Register = () => {
     <div className="bg-widget flex items-center justify-center w-full py-10 px-4 lg:p-[110px]">
       <div className="max-w-[460px] w-full">
         <div className="flex flex-col gap-2.5 text-center">
-          <h1 className="text-4xl font-bold">Đăng ký tài khoản</h1>
+          <h1 className="text-4xl font-bold">Create an account</h1>
           <p className="lg:max-w-[300px] m-auto">
-            Tạo tài khoản để bắt đầu mua sắm cùng chúng tôi.
+            Create an account to start shopping with us.
           </p>
         </div>
 
@@ -78,19 +78,19 @@ const Register = () => {
             {/* Username */}
             <div className="flex flex-col gap-[8px]">
               <label className="font-bold text-[14px] text-gray-500">
-                Tên đăng nhập
+                Username
               </label>
               <input
                 type="text"
-                placeholder="Tên đăng nhập"
+                placeholder="Username"
                 className={`h-[48px] w-full border p-2 ${
                   errors.username ? "border-red-500" : "border-gray-400"
                 }`}
                 {...register("username", {
-                  required: "Vui lòng nhập tên đăng nhập",
+                  required: "Please enter a username",
                   minLength: {
                     value: 3,
-                    message: "Tên đăng nhập phải có ít nhất 3 ký tự",
+                    message: "Username must be at least 3 characters",
                   },
                 })}
               />
@@ -108,15 +108,15 @@ const Register = () => {
               </label>
               <input
                 type="email"
-                placeholder="Địa chỉ email"
+                placeholder="Email address"
                 className={`h-[48px] w-full border p-2 ${
                   errors.email ? "border-red-500" : "border-gray-400"
                 }`}
                 {...register("email", {
-                  required: "Vui lòng nhập địa chỉ email",
+                  required: "Please enter an email address",
                   pattern: {
                     value: /^\S+@\S+$/i,
-                    message: "Địa chỉ email không hợp lệ",
+                    message: "Invalid email address",
                   },
                 })}
               />
@@ -131,16 +131,16 @@ const Register = () => {
                 name="password"
                 control={control}
                 rules={{
-                  required: "Vui lòng nhập mật khẩu",
+                  required: "Please enter a password",
                   minLength: {
                     value: 6,
-                    message: "Mật khẩu phải có ít nhất 6 ký tự",
+                    message: "Password must be at least 6 characters",
                   },
                 }}
                 render={({ field }) => (
                   <PasswordInput
                     id="password"
-                    placeholder="Mật khẩu"
+                    placeholder="Password"
                     error={errors.password}
                     innerRef={field.ref}
                     isInvalid={errors.password}
@@ -160,16 +160,16 @@ const Register = () => {
             {/* Name */}
             <div className="flex flex-col gap-[8px]">
               <label className="font-bold text-[14px] text-gray-500">
-                Họ và tên
+                Full name
               </label>
               <input
                 type="text"
-                placeholder="Họ và tên"
+                placeholder="Full name"
                 className={`h-[48px] w-full border p-2 ${
                   errors.name ? "border-red-500" : "border-gray-400"
                 }`}
                 {...register("name", {
-                  required: "Vui lòng nhập họ và tên",
+                  required: "Please enter your full name",
                 })}
               />
               {errors.name && (
@@ -180,19 +180,19 @@ const Register = () => {
             {/* Phone */}
             <div className="flex flex-col gap-[8px]">
               <label className="font-bold text-[14px] text-gray-500">
-                Số điện thoại
+                Phone number
               </label>
               <input
                 type="tel"
-                placeholder="Số điện thoại"
+                placeholder="Phone number"
                 className={`h-[48px] w-full border p-2 ${
                   errors.phone ? "border-red-500" : "border-gray-400"
                 }`}
                 {...register("phone", {
-                  required: "Vui lòng nhập số điện thoại",
+                  required: "Please enter your phone number",
                   pattern: {
                     value: /^[0-9]{10,11}$/,
-                    message: "Số điện thoại không hợp lệ",
+                    message: "Invalid phone number",
                   },
                 })}
               />
@@ -207,7 +207,7 @@ const Register = () => {
               type="submit"
               className="w-full bg-blue-500 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg"
             >
-              Đăng ký
+              Sign up
             </button>
             {apiError && <p className="text-red-500 text-sm">{apiError}</p>}
           </div>
@@ -215,7 +215,7 @@ const Register = () => {
 
         <div className="flex items-center gap-4 my-6">
           <div className="flex-1 h-px bg-gray-300" />
-          <span className="text-sm text-gray-500 font-medium">hoặc</span>
+          <span className="text-sm text-gray-500 font-medium">or</span>
           <div className="flex-1 h-px bg-gray-300" />
         </div>
         <div className="space-y-3">
@@ -223,12 +223,12 @@ const Register = () => {
           <FacebookSignIn />
         </div>
         <div className="flex justify-center gap-2.5 leading-none pt-4">
-          <p>Đã có tài khoản?</p>
+          <p>Already have an account?</p>
           <NavLink
             to="/v1/login"
             className={({ isActive }) => (isActive ? "active-link" : "")}
           >
-            Đăng nhập
+            Log in
           </NavLink>
         </div>
       </div>

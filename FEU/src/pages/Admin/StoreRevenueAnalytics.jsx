@@ -35,7 +35,7 @@ const StoreRevenueAnalytics = () => {
       setRevenueData(data.stores || []);
     } catch (error) {
       console.error("Failed to load revenue data:", error);
-      alert("Không thể tải dữ liệu doanh thu");
+      alert("Failed to load revenue data");
     } finally {
       setLoading(false);
     }
@@ -72,17 +72,15 @@ const StoreRevenueAnalytics = () => {
     <div>
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Phân tích Doanh thu Cửa hàng
+          Store Revenue Analytics
         </h3>
-        <p className="text-sm text-gray-600">
-          Xem doanh thu của tất cả các cửa hàng
-        </p>
+        <p className="text-sm text-gray-600">View revenue for all stores</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Từ ngày
+            From Date
           </label>
           <input
             type="date"
@@ -93,7 +91,7 @@ const StoreRevenueAnalytics = () => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Đến ngày
+            To Date
           </label>
           <input
             type="date"
@@ -104,13 +102,13 @@ const StoreRevenueAnalytics = () => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Lọc theo cửa hàng (tùy chọn)
+            Filter by store (optional)
           </label>
           <input
             type="number"
             value={selectedStore}
             onChange={(e) => setSelectedStore(e.target.value)}
-            placeholder="ID cửa hàng"
+            placeholder="Store ID"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
           />
         </div>
@@ -119,7 +117,7 @@ const StoreRevenueAnalytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h4 className="text-sm font-medium text-gray-600 mb-2">
-            Tổng Doanh thu
+            Total Revenue
           </h4>
           <p className="text-2xl font-bold text-gray-900">
             {formatCurrency(getTotalRevenue())}
@@ -127,13 +125,13 @@ const StoreRevenueAnalytics = () => {
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h4 className="text-sm font-medium text-gray-600 mb-2">
-            Tổng Đơn hàng
+            Total Orders
           </h4>
           <p className="text-2xl font-bold text-gray-900">{getTotalOrders()}</p>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h4 className="text-sm font-medium text-gray-600 mb-2">
-            Cửa hàng Hoạt động
+            Active Stores
           </h4>
           <p className="text-2xl font-bold text-gray-900">
             {revenueData.length}
@@ -141,7 +139,7 @@ const StoreRevenueAnalytics = () => {
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h4 className="text-sm font-medium text-gray-600 mb-2">
-            TB/Cửa hàng
+            Avg per Store
           </h4>
           <p className="text-2xl font-bold text-gray-900">
             {formatCurrency(
@@ -167,22 +165,22 @@ const StoreRevenueAnalytics = () => {
                     ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Tên cửa hàng
+                    Store Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Địa chỉ
+                    Address
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Tổng đơn
+                    Total Orders
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Doanh thu
+                    Revenue
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    TB/Đơn
+                    Avg/Order
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Đơn cuối
+                    Last Order
                   </th>
                 </tr>
               </thead>
@@ -193,7 +191,7 @@ const StoreRevenueAnalytics = () => {
                       colSpan="7"
                       className="px-6 py-8 text-center text-gray-500"
                     >
-                      Không có dữ liệu doanh thu trong khoảng thời gian này
+                      No revenue data for this period
                     </td>
                   </tr>
                 ) : (

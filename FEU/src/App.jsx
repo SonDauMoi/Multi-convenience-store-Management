@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import Category from "./components/Sections/Bycategory.jsx";
 import { fetchCategories } from "./api/fetchCategories.js";
 import { useDispatch } from "react-redux";
 import { setLoading } from "./store/features/common";

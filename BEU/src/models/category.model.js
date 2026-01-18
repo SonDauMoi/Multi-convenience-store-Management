@@ -29,6 +29,9 @@ export default (sequelize) => {
       modelName: "category",
       tableName: "categories",
       timestamps: true,
+      underscored: false,
+      createdAt: "createdAt",
+      updatedAt: "updatedAt",
     }
   );
 

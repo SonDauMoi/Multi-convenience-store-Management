@@ -53,7 +53,7 @@ const VerifyCode = ({ email }) => {
       setSuccess("");
       const finalCode = code.join("");
       if (finalCode.length !== 6) {
-        setError("Vui lòng nhập đủ 6 chữ số");
+        setError("Please enter all 6 digits");
         return;
       }
 
@@ -67,7 +67,7 @@ const VerifyCode = ({ email }) => {
           // Thông báo lỗi và giữ nguyên trang
           const errorMsg =
             error.response?.data?.message ||
-            "Mã xác thực không đúng hoặc đã hết hạn.";
+            "Invalid or expired verification code.";
           setError(errorMsg);
         })
         .finally(() => {
@@ -84,14 +84,14 @@ const VerifyCode = ({ email }) => {
 
     resendVerificationAPI(email)
       .then(() => {
-        setSuccess("Mã xác thực mới đã được gửi đến email của bạn!");
+        setSuccess("A new verification code has been sent to your email!");
         setCode(["", "", "", "", "", ""]); // Reset input
         inputRefs.current[0]?.focus();
       })
       .catch((error) => {
         const errorMsg =
           error.response?.data?.message ||
-          "Không thể gửi lại mã. Vui lòng thử lại sau.";
+          "Unable to resend the code. Please try again later.";
         setError(errorMsg);
       })
       .finally(() => {
@@ -103,10 +103,10 @@ const VerifyCode = ({ email }) => {
     <div className="min-h-screen flex justify-center items-center bg-cover bg-center">
       <div className="bg-white shadow-xl rounded-lg p-8 w-[400px] z-10 text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          Cần Được Xác Thực
+          Verification Required
         </h2>
         <p className="text-gray-600 mb-2">
-          Nhập mã chúng tôi đã gửi đến{" "}
+          Enter the code we sent to{" "}
           <span className="font-semibold">
             {email.replace(/(?<=.).(?=.*@)/g, "*")}
           </span>
@@ -137,7 +137,7 @@ const VerifyCode = ({ email }) => {
             type="submit"
             className="bg-black text-white h-12 w-full rounded hover:bg-gray-800 transition"
           >
-            Xác thực
+            Verify
           </button>
 
           {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
@@ -150,10 +150,10 @@ const VerifyCode = ({ email }) => {
             onClick={handleResendCode}
             className="text-blue-600 hover:underline text-sm"
           >
-            Gửi lại mã
+            Resend code
           </button>
           <p className="text-xs text-gray-500 mt-1">
-            Không nhận được email? Kiểm tra thư mục spam.
+            Didn't receive the email? Check your spam folder.
           </p>
         </div>
       </div>

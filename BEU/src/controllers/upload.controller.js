@@ -41,13 +41,13 @@ export const uploadFile = async (req, res) => {
 
     return res.status(400).json({
       success: false,
-      message: "Không tìm thấy dữ liệu hợp lệ (multipart file / base64 / URL)",
+      message: "No valid input provided (multipart file / base64 / URL)",
     });
   } catch (error) {
     console.error("Upload error:", error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi khi upload file",
+      message: "File upload failed",
       error: error.message,
     });
   }
